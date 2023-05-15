@@ -1,0 +1,8 @@
+[workspace]
+members = [
+    "language_parsers",
+    "file_system",
+    "output_generator",
+    "config_manager",
+    "cli_tool",
+]

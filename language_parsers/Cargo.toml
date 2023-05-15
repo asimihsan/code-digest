@@ -1,0 +1,14 @@
+[package]
+name = "language_parsers"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tree-sitter = "0.20.10"
+
+[build-dependencies]
+cc = "1.0.79"
+rayon = "1.7.0"
+version_check = "0.9.4"
