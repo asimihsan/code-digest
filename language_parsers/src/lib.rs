@@ -1,9 +1,27 @@
+/*
+ * Copyright (c) 2023 Asim Ihsan.
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 use std::collections::{HashMap, VecDeque};
 
-use crate::tree_sitter_parse::{from_language, to_tree, Language};
+use crate::tree_sitter_parse::{from_language, to_tree};
 use tree_sitter as ts;
 
 mod tree_sitter_parse;
+
+pub enum Language {
+    Go,
+    Hcl,
+    Java,
+    Python,
+    Rust,
+}
 
 #[derive(thiserror::Error, Debug)]
 pub enum ParseError {
@@ -86,22 +104,26 @@ pub fn default_parse_config_for_language(language: Language) -> ParseConfig {
                 SelectorAction::CaptureWithoutBlock,
             ));
 
-            // struct
+            // struct and interface
             //
             // type_declaration -> [..., type_spec] -> [..., type_name], then if type_name is
             // struct_type then get all the content of the top-most type_declaration
             config.add_selector(Selector::new(
                 "type_declaration",
                 SelectorAction::Custom(Box::new(|node, _cursor, source_code| {
+                    let _node_start_position = node.start_position();
+                    let _node_end_position = node.end_position();
                     let type_spec = node.child(1);
                     if let Some(type_spec) = type_spec {
                         let type_name = type_spec.child(1);
                         if let Some(type_name) = type_name {
                             let type_name_kind = type_name.kind().to_string();
-                            if type_name_kind == "struct_type" {
+                            if type_name_kind == "struct_type" || type_name_kind == "interface_type"
+                            {
                                 let content = node.utf8_text(source_code.as_bytes()).unwrap();
                                 return Ok(content.into());
                             }
+                            return Ok("".into());
                         }
                     }
                     Err(ParseError::CustomActionFailed(
@@ -188,6 +210,7 @@ fn block_like_to_string<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::assert_eq;
 
     #[test]
     fn test_parse_go() {
