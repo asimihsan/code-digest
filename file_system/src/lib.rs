@@ -8,22 +8,46 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
-use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-pub fn get_files_with_extension(path: &Path, extension: &str) -> Vec<PathBuf> {
+use ignore::WalkBuilder;
+use ignore::overrides::OverrideBuilder;
+
+pub fn get_files_with_extension(path: PathBuf, extension: &str, ignore_dirs: &[PathBuf]) -> Vec<PathBuf> {
     let mut result = Vec::new();
-    for entry in fs::read_dir(path).unwrap() {
-        let entry = entry.unwrap();
-        let path = entry.path();
-        if path.is_dir() {
-            result.append(&mut get_files_with_extension(&path, extension));
-        } else if let Some(ext) = path.extension() {
-            if ext == extension {
-                result.push(path);
+    let mut builder = WalkBuilder::new(path.clone());
+    builder.git_ignore(true)
+        .git_global(false)
+        .git_exclude(false);
+    
+    let mut override_builder = OverrideBuilder::new(path);
+    for ignore_dir in ignore_dirs {
+        override_builder.add(&format!("!{}", ignore_dir.to_str().unwrap())).unwrap();
+    }
+    builder.overrides(override_builder.build().unwrap());
+
+    let walker = builder.build();
+
+    for entry in walker {
+        match entry {
+            Ok(entry) => {
+                let path = entry.path();
+                if path.is_dir() {
+                    continue;
+                }
+                if let Some(ext) = path.extension() {
+                    if ext == extension {
+                        result.push(path.to_path_buf());
+                    }
+                }
+            }
+            Err(err) => {
+                eprintln!("Error: {}", err);
+                std::process::exit(1);
             }
         }
     }
+
     result.sort();
     result
 }

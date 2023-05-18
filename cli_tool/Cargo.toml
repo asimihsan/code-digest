@@ -6,5 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+clap = { version = "4.2.7", features = ["derive"] }
 file_system = { path = "../file_system" }
 language_parsers = { path = "../language_parsers" }
+shellexpand = "3.1.0"
+snmalloc-rs = "0.3.3"

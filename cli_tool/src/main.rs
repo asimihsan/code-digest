@@ -8,24 +8,54 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
+ #[global_allocator]
+ static ALLOC: snmalloc_rs::SnMalloc = snmalloc_rs::SnMalloc;
+
+use std::path::PathBuf;
+
+use clap::Parser;
 use file_system::get_files_with_extension;
 use language_parsers::{default_parse_config_for_language, parse};
 
+#[derive(Parser)]
+#[command(author, version, about, long_about = None)]
+struct Cli {
+    /// The path to the directory containing the files.
+    directory: PathBuf,
+
+    /// Additional directories to ignore (optional, zero or more)
+    #[clap(short, long)]
+    ignore: Vec<PathBuf>,
+}
+
 pub fn main() {
-    let args: Vec<String> = std::env::args().collect();
-    if args.len() != 2 {
-        eprintln!("Usage: {} <path>", args[0]);
+    let cli = Cli::parse();
+    if cli.directory.is_dir() == false {
+        eprintln!("Not a directory: {}", cli.directory.display());
         std::process::exit(1);
     }
+    let directory = cli.directory;
 
-    let directory = std::path::Path::new(&args[1]);
-    let go_files = get_files_with_extension(directory, "go");
+    let ignore_dirs: Vec<PathBuf> = cli
+        .ignore
+        .iter()
+        .map(|values| {
+            values
+                .iter()
+                .map(|dir| shellexpand::full(dir.to_str().unwrap()).unwrap())
+                .map(|dir| PathBuf::from(dir.to_string()))
+                .collect::<Vec<PathBuf>>()
+        })
+        .flatten()
+        .collect();
+
+    let go_files = get_files_with_extension(directory.clone(), "go", &ignore_dirs);
     let go_config = default_parse_config_for_language(language_parsers::Language::Go);
-    let rust_files = get_files_with_extension(directory, "rs");
+    let rust_files = get_files_with_extension(directory, "rs", &ignore_dirs);
     let rust_config = default_parse_config_for_language(language_parsers::Language::Rust);
-    let all_files = go_files.iter().chain(rust_files.iter());
+    let all_files: Vec<PathBuf> = go_files.iter().chain(rust_files.iter()).map(|p| p.to_path_buf()).collect();
 
-    for (file_number, file_path) in all_files.enumerate() {
+    for (file_number, file_path) in all_files.iter().enumerate() {
         let source_code = std::fs::read_to_string(&file_path).expect("Unable to read file");
         let extension = file_path.extension().unwrap().to_str().unwrap();
         let result = match extension {
@@ -42,7 +72,7 @@ pub fn main() {
             }
         };
 
-        println!("`{}`\n\n", file_path.display());
+        println!("`{}`", file_path.display());
         match extension {
             "go" => {
                 println!("```go\n");
@@ -62,8 +92,8 @@ pub fn main() {
                 println!();
             }
         }
-        println!("```");
-        if file_number < go_files.len() - 1 {
+        println!("```\n");
+        if file_number < all_files.len() - 1 {
             println!();
         }
     }
