@@ -23,8 +23,9 @@ pub fn main() {
     let go_config = default_parse_config_for_language(language_parsers::Language::Go);
     let rust_files = get_files_with_extension(directory, "rs");
     let rust_config = default_parse_config_for_language(language_parsers::Language::Rust);
+    let all_files = go_files.iter().chain(rust_files.iter());
 
-    for (file_number, file_path) in go_files.iter().enumerate() {
+    for (file_number, file_path) in all_files.enumerate() {
         let source_code = std::fs::read_to_string(&file_path).expect("Unable to read file");
         let extension = file_path.extension().unwrap().to_str().unwrap();
         let result = match extension {
