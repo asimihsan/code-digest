@@ -188,10 +188,11 @@ pub fn parse(source_code: &str, config: &ParseConfig) -> ParseResult<Vec<KeyCont
                 result.push(KeyContent { content });
             }
             SelectorAction::CaptureAll => {
-                let mut content = String::new();
-                for child in node.children(cursor) {
-                    content.push_str(child.utf8_text(source_code.as_bytes()).unwrap());
-                }
+                let content = node
+                    .utf8_text(source_code.as_bytes())
+                    .unwrap()
+                    .trim()
+                    .to_string();
                 result.push(KeyContent { content });
             }
             SelectorAction::Custom(action) => {
@@ -215,13 +216,17 @@ fn block_like_to_string<'a>(
         if child.kind() == "block" {
             result.push_str(" {\n\t// ...\n}");
         } else {
-            if child.kind() != "parameter_list" && child.kind() != "func" {
+            if child.kind() != "parameter_list"
+                && child.kind() != "func"
+                && child.kind() != "type_parameters"
+                && child.kind() != "parameters"
+            {
                 result.push(' ');
             }
             result.push_str(child.utf8_text(source_code.as_bytes()).unwrap());
         }
     }
-    result
+    result.trim().to_string()
 }
 
 #[cfg(test)]
@@ -257,7 +262,7 @@ func Setup(t *testing.T, setupConfig *SetupConfig) (*SetupFixture, error) {
         assert_eq!(result.len(), 3);
         assert_eq!(
             result[0].content,
-            r#"import(
+            r#"import (
 	"context"
 )"#
         );
