@@ -87,9 +87,9 @@ pub struct KeyContent {
 }
 
 pub fn default_parse_config_for_language(language: Language) -> ParseConfig {
+    let mut config = ParseConfig::new(language);
     match language {
         Language::Go => {
-            let mut config = ParseConfig::new(language);
             config.add_selector(Selector::new("source_file", SelectorAction::SelectOnly));
             config.add_selector(Selector::new(
                 "import_declaration",
@@ -132,6 +132,9 @@ pub fn default_parse_config_for_language(language: Language) -> ParseConfig {
                 })),
             ));
             config
+        }
+        Language::Rust => {
+            todo!()
         }
         _ => todo!(),
     }
