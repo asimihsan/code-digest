@@ -15,6 +15,7 @@ use tree_sitter as ts;
 
 mod tree_sitter_parse;
 
+#[derive(Clone, Copy)]
 pub enum Language {
     Go,
     Hcl,
@@ -134,7 +135,20 @@ pub fn default_parse_config_for_language(language: Language) -> ParseConfig {
             config
         }
         Language::Rust => {
-            todo!()
+            config.add_selector(Selector::new("source_file", SelectorAction::SelectOnly));
+            config.add_selector(Selector::new("use_declaration", SelectorAction::CaptureAll));
+            config.add_selector(Selector::new("struct_item", SelectorAction::CaptureAll));
+            config.add_selector(Selector::new("enum_item", SelectorAction::CaptureAll));
+            config.add_selector(Selector::new("type_item", SelectorAction::CaptureAll));
+            config.add_selector(Selector::new(
+                "function_item",
+                SelectorAction::CaptureWithoutBlock,
+            ));
+            config.add_selector(Selector::new(
+                "function_signature_item",
+                SelectorAction::CaptureWithoutBlock,
+            ));
+            config
         }
         _ => todo!(),
     }
@@ -260,6 +274,68 @@ func Setup(t *testing.T, setupConfig *SetupConfig) (*SetupFixture, error) {
         assert_eq!(
             result[2].content,
             r#"func Setup(t *testing.T, setupConfig *SetupConfig)(*SetupFixture, error) {
+	// ...
+}"#
+        );
+    }
+
+    #[test]
+    fn test_parse_rust() {
+        let source_code = r#"
+use std::collections::HashMap;
+
+pub struct Point {
+    x: f64,
+    y: f64,
+}
+
+pub enum Shape {
+    Circle(Point, f64),
+    Rectangle(Point, Point),
+}
+
+pub type PointMap = HashMap<String, Point>;
+
+pub fn distance(p1: &Point, p2: &Point) -> f64 {
+    // ...
+}
+
+pub fn area(shape: &Shape) -> f64 {
+    // ...
+}
+"#
+        .trim();
+        let config = default_parse_config_for_language(Language::Rust);
+        let result = parse(source_code, &config).unwrap();
+        assert_eq!(result.len(), 6);
+        assert_eq!(result[0].content, "use std::collections::HashMap;");
+        assert_eq!(
+            result[1].content,
+            r#"pub struct Point {
+    x: f64,
+    y: f64,
+}"#
+        );
+        assert_eq!(
+            result[2].content,
+            r#"pub enum Shape {
+    Circle(Point, f64),
+    Rectangle(Point, Point),
+}"#
+        );
+        assert_eq!(
+            result[3].content,
+            "pub type PointMap = HashMap<String, Point>;"
+        );
+        assert_eq!(
+            result[4].content,
+            r#"pub fn distance(p1: &Point, p2: &Point) -> f64 {
+	// ...
+}"#
+        );
+        assert_eq!(
+            result[5].content,
+            r#"pub fn area(shape: &Shape) -> f64 {
 	// ...
 }"#
         );
