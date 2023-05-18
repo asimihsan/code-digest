@@ -33,6 +33,57 @@ code-digest can be easily adapted to various use cases and requirements.
 - Cross-compilation to Android, iOS, and other platforms (library only)
 - Command-line interface (CLI) tool for easy integration into existing workflows
 
+## Examples
+
+Input Rust code:
+
+```rust
+pub struct Point {
+    x: f64,
+    y: f64,
+}
+
+pub enum Shape {
+    Circle(Point, f64),
+    Rectangle(Point, Point),
+}
+
+pub fn distance(p1: &Point, p2: &Point) -> f64 {
+    let dx = p1.x - p2.x;
+    let dy = p1.y - p2.y;
+    (dx * dx + dy * dy).sqrt()
+}
+
+pub fn area(shape: &Shape) -> f64 {
+    match shape {
+        Shape::Circle(_, radius) => std::f64::consts::PI * radius * radius,
+        Shape::Rectangle(p1, p2) => (p1.x - p2.x).abs() * (p1.y - p2.y).abs(),
+    }
+}
+```
+
+With default settings, the output key content:
+
+```text
+pub struct Point {
+    x: f64,
+    y: f64,
+}
+
+pub enum Shape {
+    Circle(Point, f64),
+    Rectangle(Point, Point),
+}
+
+pub fn distance(p1: &Point, p2: &Point) -> f64 {
+    // ...
+}
+
+pub fn area(shape: &Shape) -> f64 {
+    // ...
+}
+```
+
 ## Usage
 
 To use `code-digest`, you can either integrate the library into your own project
