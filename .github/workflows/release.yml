@@ -13,9 +13,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-
-      - name: Initialize submodules
-        uses: snickerbockers/submodules-init@v4
+        with:
+          submodules: recursive
 
       - name: Cache Crates
         uses: actions/cache@v3
@@ -64,9 +63,6 @@ jobs:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
       - name: Check if release exists
         id: check_release
         run: |
