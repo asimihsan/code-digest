@@ -64,7 +64,7 @@ pub fn main() {
         .collect();
     let glob_matcher = GlobPatternMatcher::new_from_strings(cli.include).unwrap();
 
-    let files = get_files(directory.clone(), &ignore_dirs);
+    let files = get_files(directory, &ignore_dirs);
     let go_config = default_parse_config_for_language(language_parsers::Language::Go);
     let rust_config = default_parse_config_for_language(language_parsers::Language::Rust);
 
