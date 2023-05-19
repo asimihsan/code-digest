@@ -8,8 +8,6 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
-use std::fs;
-
 use file_system::File;
 
 #[derive(thiserror::Error, Debug)]
@@ -70,7 +68,7 @@ pub fn print_file_tree(
 }
 
 fn print_indent(
-    mut callback: &mut impl FnMut(CallbackArgs<&'static str>),
+    callback: &mut impl FnMut(CallbackArgs<&'static str>),
     depth: isize,
     is_last_sibling: bool,
     is_last_entry: bool,
@@ -122,8 +120,8 @@ mod tests {
         let file_a2 = dir_a.join("file_a2.txt");
         let file_b1 = dir_b.join("file_b1.txt");
 
-        fs::create_dir(&dir_a).unwrap();
-        fs::create_dir(&dir_b).unwrap();
+        std::fs::create_dir(&dir_a).unwrap();
+        std::fs::create_dir(&dir_b).unwrap();
         File::create(file_a1).unwrap();
         File::create(file_a2).unwrap();
         File::create(file_b1).unwrap();
