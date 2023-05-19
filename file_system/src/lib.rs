@@ -13,7 +13,40 @@ use std::path::{Path, PathBuf};
 use ignore::overrides::OverrideBuilder;
 use ignore::WalkBuilder;
 
-pub fn get_files(path: PathBuf, ignore_dirs: &[PathBuf]) -> Vec<PathBuf> {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum FileKind {
+    File,
+    Directory,
+}
+
+#[derive(Debug, Clone)]
+pub struct File {
+    pub path: PathBuf,
+    pub kind: FileKind,
+    pub depth: isize,
+}
+
+impl PartialEq for File {
+    fn eq(&self, other: &Self) -> bool {
+        self.path == other.path
+    }
+}
+
+impl Eq for File {}
+
+impl PartialOrd for File {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.path.partial_cmp(&other.path)
+    }
+}
+
+impl Ord for File {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.path.cmp(&other.path)
+    }
+}
+
+pub fn get_files(path: PathBuf, ignore_dirs: &[PathBuf]) -> Vec<File> {
     let mut result = Vec::new();
     let mut builder = WalkBuilder::new(path.clone());
     builder
@@ -21,7 +54,7 @@ pub fn get_files(path: PathBuf, ignore_dirs: &[PathBuf]) -> Vec<PathBuf> {
         .git_global(false)
         .git_exclude(false);
 
-    let mut override_builder = OverrideBuilder::new(path);
+    let mut override_builder = OverrideBuilder::new(path.clone());
     for ignore_dir in ignore_dirs {
         override_builder
             .add(&format!("!{}", ignore_dir.to_str().unwrap()))
@@ -30,15 +63,22 @@ pub fn get_files(path: PathBuf, ignore_dirs: &[PathBuf]) -> Vec<PathBuf> {
     builder.overrides(override_builder.build().unwrap());
 
     let walker = builder.build();
-
     for entry in walker {
         match entry {
             Ok(entry) => {
-                let path = entry.path();
-                if path.is_dir() {
-                    continue;
-                }
-                result.push(path.to_path_buf());
+                let subpath = entry.path();
+                let relative_path = subpath.strip_prefix(&path).unwrap();
+                let depth = relative_path.components().count() as isize;
+                let file = File {
+                    path: subpath.to_path_buf(),
+                    kind: if subpath.is_dir() {
+                        FileKind::Directory
+                    } else {
+                        FileKind::File
+                    },
+                    depth,
+                };
+                result.push(file);
             }
             Err(err) => {
                 eprintln!("Error: {}", err);
@@ -89,5 +129,81 @@ impl GlobPatternMatcher {
             }
         }
         false
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[test]
+    fn test_glob_pattern_matcher() {
+        let mut glob_pattern_matcher = GlobPatternMatcher::new();
+        glob_pattern_matcher
+            .add_glob_pattern("*.rs")
+            .expect("Failed to add glob pattern");
+        glob_pattern_matcher
+            .add_glob_pattern("*.toml")
+            .expect("Failed to add glob pattern");
+        glob_pattern_matcher
+            .add_glob_pattern("*.txt")
+            .expect("Failed to add glob pattern");
+        assert!(glob_pattern_matcher.matches(Path::new("Cargo.toml")));
+        assert!(glob_pattern_matcher.matches(Path::new("src/main.rs")));
+        assert!(glob_pattern_matcher.matches(Path::new("src/file_tree.rs")));
+        assert!(glob_pattern_matcher.matches(Path::new("src/file_tree.txt")));
+        assert!(!glob_pattern_matcher.matches(Path::new("src/file_tree.rs.bak")));
+        assert!(glob_pattern_matcher.matches(Path::new("src/file_tree.rs.bak.txt")));
+    }
+
+    /// Given
+    /// a
+    /// a/file_a1.txt
+    /// a/file_a2.txt
+    /// b
+    /// b/file_b1.txt
+    ///
+    /// Return files in this order, including directories, with correct depths (1 for
+    /// a, 2 for a/a_1.txt, etc.). Root is not included in the result.
+    #[test]
+    fn test_get_files() {
+        // Create a temporary directory with a specific structure
+        let temp_dir = tempdir().unwrap();
+        let dir_a = temp_dir.path().join("a");
+        let dir_b = temp_dir.path().join("b");
+        let file_a1 = dir_a.join("file_a1.txt");
+        let file_a2 = dir_a.join("file_a2.txt");
+        let file_b1 = dir_b.join("file_b1.txt");
+
+        std::fs::create_dir(&dir_a).unwrap();
+        std::fs::create_dir(&dir_b).unwrap();
+        std::fs::File::create(file_a1.clone()).unwrap();
+        std::fs::File::create(file_a2.clone()).unwrap();
+        std::fs::File::create(file_b1.clone()).unwrap();
+
+        let ignore_dirs = Vec::new();
+
+        let files = get_files(temp_dir.path().to_path_buf(), &ignore_dirs);
+
+        assert_eq!(files.len(), 6);
+        assert_eq!(files[0].path, temp_dir.path().to_path_buf());
+        assert_eq!(files[0].kind, FileKind::Directory);
+        assert_eq!(files[0].depth, 0);
+        assert_eq!(files[1].path, dir_a);
+        assert_eq!(files[1].kind, FileKind::Directory);
+        assert_eq!(files[1].depth, 1);
+        assert_eq!(files[2].path, file_a1);
+        assert_eq!(files[2].kind, FileKind::File);
+        assert_eq!(files[2].depth, 2);
+        assert_eq!(files[3].path, file_a2);
+        assert_eq!(files[3].kind, FileKind::File);
+        assert_eq!(files[3].depth, 2);
+        assert_eq!(files[4].path, dir_b);
+        assert_eq!(files[4].kind, FileKind::Directory);
+        assert_eq!(files[4].depth, 1);
+        assert_eq!(files[5].path, file_b1);
+        assert_eq!(files[5].kind, FileKind::File);
+        assert_eq!(files[5].depth, 2);
     }
 }

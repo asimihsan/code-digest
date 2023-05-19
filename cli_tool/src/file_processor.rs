@@ -75,7 +75,6 @@ mod tests {
     use super::*;
     use crate::GlobPatternMatcher;
     use language_parsers::{default_parse_config_for_language, Language};
-    use std::io::Write;
 
     #[test]
     fn test_process_file_rust() {

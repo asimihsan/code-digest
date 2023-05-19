@@ -16,7 +16,7 @@ use file_system::{get_files, GlobPatternMatcher};
 use language_parsers::default_parse_config_for_language;
 
 use crate::file_processor::process_file;
-use crate::file_tree::print_file_tree;
+use crate::file_tree::{print_file_tree, CallbackArgs};
 
 mod file_processor;
 mod file_tree;
@@ -69,13 +69,29 @@ pub fn main() {
     let rust_config = default_parse_config_for_language(language_parsers::Language::Rust);
 
     if cli.tree {
-        print_file_tree(&directory, &ignore_dirs, |s| {
-            println!("{}", s);
+        print_file_tree(
+            &files,
+            |CallbackArgs {
+                 output: s,
+                 linebreak,
+             }| {
+                print!("{}", s);
+                if linebreak {
+                    println!();
+                }
+            },
+        )
+        .unwrap_or_else(|e| {
+            eprintln!("Error printing file tree: {}", e);
+            std::process::exit(1);
         });
     }
 
-    for (i, file_path) in files.iter().enumerate() {
-        process_file(&file_path, &go_config, &rust_config, &glob_matcher, |s| {
+    for (i, file) in files.iter().enumerate() {
+        if file.kind != file_system::FileKind::File {
+            continue;
+        }
+        process_file(&file.path, &go_config, &rust_config, &glob_matcher, |s| {
             println!("{}", s);
         });
         if i < files.len() - 1 {
