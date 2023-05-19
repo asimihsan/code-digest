@@ -60,16 +60,40 @@ impl Selector {
     }
 }
 
+pub enum Indentation {
+    Tabs,
+    Spaces(usize),
+}
+
+impl Default for Indentation {
+    fn default() -> Self {
+        Indentation::Spaces(4)
+    }
+}
+
 pub struct ParseConfig {
     language_config: tree_sitter_parse::TreeSitterConfig,
     selectors: HashMap<String, Selector>,
+    indent_value: String,
 }
 
 impl ParseConfig {
-    pub fn new(language: Language) -> ParseConfig {
+    pub fn new(language: Language, indentation: Indentation) -> ParseConfig {
+        let indent_value = match indentation {
+            Indentation::Tabs => "\t".to_string(),
+            Indentation::Spaces(indent_size) => {
+                let mut indent_value = String::with_capacity(indent_size);
+                for _ in 0..indent_size {
+                    indent_value.push(' ');
+                }
+                indent_value
+            }
+        };
+
         ParseConfig {
             language_config: from_language(language),
             selectors: HashMap::new(),
+            indent_value,
         }
     }
 
@@ -88,9 +112,9 @@ pub struct KeyContent {
 }
 
 pub fn default_parse_config_for_language(language: Language) -> ParseConfig {
-    let mut config = ParseConfig::new(language);
     match language {
         Language::Go => {
+            let mut config = ParseConfig::new(language, Indentation::Tabs);
             config.add_selector(Selector::new("source_file", SelectorAction::SelectOnly));
             config.add_selector(Selector::new(
                 "import_declaration",
@@ -135,6 +159,7 @@ pub fn default_parse_config_for_language(language: Language) -> ParseConfig {
             config
         }
         Language::Rust => {
+            let mut config = ParseConfig::new(language, Indentation::Spaces(4));
             config.add_selector(Selector::new("source_file", SelectorAction::SelectOnly));
             config.add_selector(Selector::new("use_declaration", SelectorAction::CaptureAll));
             config.add_selector(Selector::new("struct_item", SelectorAction::CaptureAll));
@@ -184,7 +209,7 @@ pub fn parse(source_code: &str, config: &ParseConfig) -> ParseResult<Vec<KeyCont
                 }
             }
             SelectorAction::CaptureWithoutBlock => {
-                let content = block_like_to_string(node, cursor, source_code);
+                let content = block_like_to_string(node, cursor, source_code, config);
                 result.push(KeyContent { content });
             }
             SelectorAction::CaptureAll => {
@@ -209,12 +234,15 @@ fn block_like_to_string<'a>(
     node: ts::Node<'a>,
     cursor: &mut ts::TreeCursor<'a>,
     source_code: &str,
+    config: &ParseConfig,
 ) -> String {
     let capacity_guess = node.byte_range().len();
     let mut result = String::with_capacity(capacity_guess);
     for child in node.children(cursor) {
         if child.kind() == "block" {
-            result.push_str(" {\n\t// ...\n}");
+            result.push_str(" {\n");
+            result.push_str(&config.indent_value);
+            result.push_str("// ...\n}");
         } else {
             if child.kind() != "parameter_list"
                 && child.kind() != "func"
@@ -335,13 +363,13 @@ pub fn area(shape: &Shape) -> f64 {
         assert_eq!(
             result[4].content,
             r#"pub fn distance(p1: &Point, p2: &Point) -> f64 {
-	// ...
+    // ...
 }"#
         );
         assert_eq!(
             result[5].content,
             r#"pub fn area(shape: &Shape) -> f64 {
-	// ...
+    // ...
 }"#
         );
     }

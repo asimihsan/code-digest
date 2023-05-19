@@ -50,10 +50,10 @@ pub fn process_file(
     callback(&format!("`{}`", file_path.display()));
     match extension {
         "go" => {
-            callback("```go\n");
+            callback("```go");
         }
         "rs" => {
-            callback("```rust\n");
+            callback("```rust");
         }
         _ => {
             eprintln!("Unknown extension: {}", extension);
@@ -67,7 +67,7 @@ pub fn process_file(
             callback("\n");
         }
     }
-    callback("```\n");
+    callback("```");
 }
 
 #[cfg(test)]
@@ -99,15 +99,20 @@ fn main() {
         let mut actual_output = String::new();
         process_file(&file_path, &go_config, &rust_config, &glob_matcher, |s| {
             actual_output.push_str(s);
-            actual_output.push_str("\n");
+            actual_output.push('\n');
         });
 
-        let expected_output = r#"
-fn main() {
+        let expected_output = format!(
+            r#"`{}`
+```rust
+fn main() {{
     // ...
-}
-        "#;
+}}
+```
+"#,
+            file_path.display()
+        );
 
-        // TODO compare, remember filename
+        assert_eq!(actual_output, expected_output);
     }
 }

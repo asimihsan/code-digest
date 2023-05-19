@@ -60,9 +60,12 @@ pub fn main() {
     let go_config = default_parse_config_for_language(language_parsers::Language::Go);
     let rust_config = default_parse_config_for_language(language_parsers::Language::Rust);
 
-    for file_path in files {
+    for (i, file_path) in files.iter().enumerate() {
         process_file(&file_path, &go_config, &rust_config, &glob_matcher, |s| {
             println!("{}", s);
         });
+        if i < files.len() - 1 {
+            println!();
+        }
     }
 }
