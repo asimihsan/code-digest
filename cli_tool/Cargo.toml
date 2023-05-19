@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 clap = { version = "4.2.7", features = ["derive"] }
 file_system = { path = "../file_system" }
+glob = "0.3.1"
 language_parsers = { path = "../language_parsers" }
 shellexpand = "3.1.0"
 snmalloc-rs = "0.3.3"

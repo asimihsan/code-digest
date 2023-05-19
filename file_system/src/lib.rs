@@ -8,21 +8,24 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-use ignore::WalkBuilder;
 use ignore::overrides::OverrideBuilder;
+use ignore::WalkBuilder;
 
-pub fn get_files_with_extension(path: PathBuf, extension: &str, ignore_dirs: &[PathBuf]) -> Vec<PathBuf> {
+pub fn get_files(path: PathBuf, ignore_dirs: &[PathBuf]) -> Vec<PathBuf> {
     let mut result = Vec::new();
     let mut builder = WalkBuilder::new(path.clone());
-    builder.git_ignore(true)
+    builder
+        .git_ignore(true)
         .git_global(false)
         .git_exclude(false);
-    
+
     let mut override_builder = OverrideBuilder::new(path);
     for ignore_dir in ignore_dirs {
-        override_builder.add(&format!("!{}", ignore_dir.to_str().unwrap())).unwrap();
+        override_builder
+            .add(&format!("!{}", ignore_dir.to_str().unwrap()))
+            .unwrap();
     }
     builder.overrides(override_builder.build().unwrap());
 
@@ -35,11 +38,7 @@ pub fn get_files_with_extension(path: PathBuf, extension: &str, ignore_dirs: &[P
                 if path.is_dir() {
                     continue;
                 }
-                if let Some(ext) = path.extension() {
-                    if ext == extension {
-                        result.push(path.to_path_buf());
-                    }
-                }
+                result.push(path.to_path_buf());
             }
             Err(err) => {
                 eprintln!("Error: {}", err);
@@ -50,4 +49,45 @@ pub fn get_files_with_extension(path: PathBuf, extension: &str, ignore_dirs: &[P
 
     result.sort();
     result
+}
+
+pub struct GlobPatternMatcher {
+    glob_patterns: Vec<glob::Pattern>,
+}
+
+impl Default for GlobPatternMatcher {
+    fn default() -> Self {
+        GlobPatternMatcher::new()
+    }
+}
+
+impl GlobPatternMatcher {
+    pub fn new() -> Self {
+        GlobPatternMatcher {
+            glob_patterns: Vec::new(),
+        }
+    }
+    pub fn new_from_strings(glob_patterns: Vec<String>) -> Result<Self, glob::PatternError> {
+        let mut result = GlobPatternMatcher::new();
+        for glob_pattern in glob_patterns {
+            result.add_glob_pattern(&glob_pattern)?;
+        }
+        Ok(result)
+    }
+
+    pub fn add_glob_pattern(&mut self, glob_pattern: &str) -> Result<(), glob::PatternError> {
+        let glob_pattern = glob::Pattern::new(glob_pattern)?;
+        self.glob_patterns.push(glob_pattern);
+        Ok(())
+    }
+
+    /// Returns true if the file path matches any of the glob patterns. Otherwise, returns false.
+    pub fn matches(&self, file_path: &Path) -> bool {
+        for glob_pattern in &self.glob_patterns {
+            if glob_pattern.matches_path(file_path) {
+                return true;
+            }
+        }
+        false
+    }
 }
