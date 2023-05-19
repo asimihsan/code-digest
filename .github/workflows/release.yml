@@ -14,6 +14,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      - name: Initialize submodules
+        uses: snickerbockers/submodules-init@v4
+
+      - name: Cache Crates
+        uses: actions/cache@v3
+        with:
+          path: |
+            ./target
+            ~/.cargo
+          key: debug-${{ runner.os }}-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            debug-${{ runner.os }}-${{ hashFiles('rust-toolchain.toml') }}-
+            debug-${{ runner.os }}-
+
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
