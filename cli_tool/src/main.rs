@@ -8,17 +8,21 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
+use std::path::PathBuf;
+
+use clap::Parser;
+
+use file_system::{get_files, GlobPatternMatcher};
+use language_parsers::default_parse_config_for_language;
+
+use crate::file_processor::process_file;
+use crate::file_tree::print_file_tree;
+
 mod file_processor;
+mod file_tree;
 
 #[global_allocator]
 static ALLOC: snmalloc_rs::SnMalloc = snmalloc_rs::SnMalloc;
-
-use std::path::{Path, PathBuf};
-
-use crate::file_processor::process_file;
-use clap::Parser;
-use file_system::{get_files, GlobPatternMatcher};
-use language_parsers::{default_parse_config_for_language, parse, ParseConfig};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -33,6 +37,10 @@ struct Cli {
     /// Glob patterns for which to include the full file contents, e.g. `*.md` (optional, zero or more)
     #[clap(short = 'I', long)]
     include: Vec<String>,
+
+    /// Print a file tree for each directory (optional, default false)
+    #[clap(short = 't', long)]
+    tree: bool,
 }
 
 pub fn main() {
@@ -56,9 +64,15 @@ pub fn main() {
         .collect();
     let glob_matcher = GlobPatternMatcher::new_from_strings(cli.include).unwrap();
 
-    let files = get_files(directory, &ignore_dirs);
+    let files = get_files(directory.clone(), &ignore_dirs);
     let go_config = default_parse_config_for_language(language_parsers::Language::Go);
     let rust_config = default_parse_config_for_language(language_parsers::Language::Rust);
+
+    if cli.tree {
+        print_file_tree(&directory, &ignore_dirs, |s| {
+            println!("{}", s);
+        });
+    }
 
     for (i, file_path) in files.iter().enumerate() {
         process_file(&file_path, &go_config, &rust_config, &glob_matcher, |s| {
