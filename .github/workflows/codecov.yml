@@ -35,7 +35,7 @@ jobs:
         run: |
           cargo install cargo-checkmate
           cargo install cargo-audit
-          cargo install cargo-fmt
+          rustup component add rustfmt --toolchain nightly
           cargo install cargo-clippy
 
       - name: Build
