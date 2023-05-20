@@ -5,6 +5,8 @@
 <p align="center">
     <a href="#overview">Overview</a> •
     <a href="#features">Features</a> •
+    <a href="#install">Install</a> •
+    <a href="#examples">Examples</a> •
     <a href="#usage">Usage</a> •
     <a href="#library">Library</a> •
     <a href="#cli-tool">CLI Tool</a> •
@@ -32,6 +34,13 @@ code-digest can be easily adapted to various use cases and requirements.
 - Efficient file system traversal with support for ignoring specific directories
 - Cross-compilation to Android, iOS, and other platforms (library only)
 - Command-line interface (CLI) tool for easy integration into existing workflows
+
+## Install
+
+```shell
+brew tap asimihsan/code-digest
+brew install code-digest
+```
 
 ## Examples
 
