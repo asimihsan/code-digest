@@ -19,6 +19,8 @@ Welcome to the code-digest repository, a versatile library and toolset for
 extracting essential information from codebases and preparing inputs for large
 language models.
 
+[![codecov](https://codecov.io/gh/asimihsan/code-digest/branch/main/graph/badge.svg?token=70NAB25YOV)](https://codecov.io/gh/asimihsan/code-digest)
+
 ## Overview
 
 code-digest is designed to help developers and researchers analyze codebases,
