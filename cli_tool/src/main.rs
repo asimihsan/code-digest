@@ -28,7 +28,7 @@ static ALLOC: snmalloc_rs::SnMalloc = snmalloc_rs::SnMalloc;
 #[command(author, version, about, long_about = None)]
 struct Cli {
     /// The path to the directory containing the files.
-    directory: PathBuf,
+    directory: String,
 
     /// Additional directories to ignore (optional, zero or more)
     #[clap(short = 'i', long)]
@@ -45,23 +45,25 @@ struct Cli {
 
 pub fn main() {
     let cli = Cli::parse();
-    if !cli.directory.is_dir() {
-        eprintln!("Not a directory: {}", cli.directory.display());
+
+    let directory = shellexpand::full(cli.directory.as_str())
+        .map_err(|e| {
+            eprintln!("Error expanding directory: {}", e);
+            std::process::exit(1);
+        })
+        .unwrap();
+    let directory = PathBuf::from(directory.as_ref());
+    if !directory.is_dir() {
+        eprintln!("Not a directory: {}", cli.directory);
         std::process::exit(1);
     }
-    let directory = cli.directory;
 
     let ignore_dirs: Vec<PathBuf> = cli
         .ignore
         .iter()
-        .flat_map(|values| {
-            values
-                .iter()
-                .map(|dir| shellexpand::full(dir.to_str().unwrap()).unwrap())
-                .map(|dir| PathBuf::from(dir.to_string()))
-                .collect::<Vec<PathBuf>>()
-        })
-        .collect();
+        .map(|dir| shellexpand::full(dir.to_str().unwrap()).unwrap())
+        .map(|dir| PathBuf::from(dir.to_string()))
+        .collect::<Vec<PathBuf>>();
     let glob_matcher = GlobPatternMatcher::new_from_strings(cli.include).unwrap();
 
     let files = get_files(directory, &ignore_dirs);

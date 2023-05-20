@@ -140,6 +140,35 @@ applications and other environments where cross-compilation is required. Note
 that the CLI tool is not intended for cross-compilation and is provided as a
 demonstration of the library's capabilities.
 
+## Developing
+
+### Mac release
+
+#### Pre-requisites
+
+1. Get your developer ID:
+
+    ```shell
+    security find-identity -v
+    ```
+
+2. Generate an app-specific password in your Apple ID account then put it into Keychain undedr the name `AC_PASSWORD`.
+3. Create a bundle ID in Apple, e.g. `com.foo.baz`.
+4. Use `.env.template` to create `.env` and fill in the values.
+5. You need a developer certificate, see https://developer.apple.com/help/account/create-certificates/create-developer-id-certificates
+
+#### Steps
+
+```shell
+source .env
+./scripts/notarize.sh \
+  --binary-path "target/aarch64-apple-darwin/release/code-digest" \
+  --output-zip-path "target/aarch64-apple-darwin/release/code-digest.zip" \
+  --developer-id "$DEVELOPER_ID" \
+  --apple-id "$APPLE_ID" \
+  --app-specific-password "$APP_SPECIFIC_PASSWORD"
+```
+
 ## Contributing
 
 Contributions to `code-digest` are welcome! If you have a feature request, bug

@@ -28,6 +28,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
+source "${ROOT_DIR}/.env"
 
 TAG=
 FORCE=
@@ -63,14 +64,19 @@ if ! gh run list --limit 1 --workflow ".github/workflows/release.yml" --branch "
   exit 1
 fi
 
-# Cross-compile the project for different platforms
-cargo install cargo-zigbuild
-pip install cargo-zigbuild
-
 #cross_targets=("x86_64-unknown-linux-gnu" "x86_64-apple-darwin" "x86_64-pc-windows-gnu" "aarch64-unknown-linux-gnu" "aarch64-apple-darwin" "aarch64-pc-windows-gnu")
 cross_targets=("aarch64-apple-darwin")
 for target in "${cross_targets[@]}"; do
   (cd "$ROOT_DIR" && cargo build --release --target "$target")
+
+  if [[ "$target" == "aarch64-apple-darwin" ]]; then
+    "${SCRIPT_DIR}"/notarize.sh \
+      --binary-path "${ROOT_DIR}/target/${target}/release/code-digest" \
+      --output-zip-path "${ROOT_DIR}target/${target}/release/code-digest.zip" \
+      --developer-id "$DEVELOPER_ID" \
+      --apple-id "$APPLE_ID" \
+      --app-specific-password "$APP_SPECIFIC_PASSWORD"
+  fi
 done
 
 # Check if the release already exists
@@ -91,6 +97,12 @@ gh release create "$TAG" --title "Release $TAG" --notes "Release notes for $TAG"
 
 # Upload the artifacts
 for target in "${cross_targets[@]}"; do
+  if [[ "$target" == "aarch64-apple-darwin" ]]; then
+    artifact="${ROOT_DIR}target/${target}/release/code-digest.zip"
+    gh release upload "$TAG" "$artifact" --clobber
+    continue
+  fi
+
   artifact="${ROOT_DIR}/target/$target/release/code-digest"
   artifact_name="code-digest-$target"
   zip -j "$artifact_name.zip" "$artifact"
