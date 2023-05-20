@@ -60,3 +60,5 @@ jobs:
         uses: codecov/codecov-action@v3
         with:
           fail_ci_if_error: true
+          file: ${{ steps.rust-grcov.outputs.report }}
+
