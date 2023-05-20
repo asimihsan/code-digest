@@ -60,6 +60,7 @@ pub fn get_files(path: PathBuf, ignore_dirs: &[PathBuf]) -> Vec<File> {
             .add(&format!("!{}", ignore_dir.to_str().unwrap()))
             .unwrap();
     }
+    override_builder.add("!.gitkeep").unwrap();
     builder.overrides(override_builder.build().unwrap());
 
     let walker = builder.build();
@@ -155,6 +156,15 @@ mod tests {
         assert!(glob_pattern_matcher.matches(Path::new("src/file_tree.txt")));
         assert!(!glob_pattern_matcher.matches(Path::new("src/file_tree.rs.bak")));
         assert!(glob_pattern_matcher.matches(Path::new("src/file_tree.rs.bak.txt")));
+    }
+
+    #[test]
+    fn test_glob_pattern_matches_absolute_path() {
+        let mut glob_pattern_matcher = GlobPatternMatcher::new();
+        glob_pattern_matcher
+            .add_glob_pattern("*.rs")
+            .expect("Failed to add glob pattern");
+        assert!(glob_pattern_matcher.matches(Path::new("/home/user/src/main.rs")));
     }
 
     /// Given

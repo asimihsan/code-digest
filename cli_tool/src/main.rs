@@ -64,7 +64,23 @@ pub fn main() {
         .map(|dir| shellexpand::full(dir.to_str().unwrap()).unwrap())
         .map(|dir| PathBuf::from(dir.to_string()))
         .collect::<Vec<PathBuf>>();
-    let glob_matcher = GlobPatternMatcher::new_from_strings(cli.include).unwrap();
+
+    // cli.include comes from a shell and should not include single quotes around e.g. '*.md'. But
+    // if it does then we remove them here. Must be a matching pair of single quotes at the start
+    // and end of the string.
+    let cli_include = cli
+        .include
+        .iter()
+        .map(|s| {
+            if s.starts_with('\'') && s.ends_with('\'') {
+                s[1..s.len() - 1].to_string()
+            } else {
+                s.to_string()
+            }
+        })
+        .collect::<Vec<String>>();
+
+    let glob_matcher = GlobPatternMatcher::new_from_strings(cli_include).unwrap();
 
     let files = get_files(directory, &ignore_dirs);
     let go_config = default_parse_config_for_language(language_parsers::Language::Go);
