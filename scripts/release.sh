@@ -58,6 +58,18 @@ if ! git rev-parse "$TAG" >/dev/null 2>&1; then
   exit 1
 fi
 
+# If the current Git clone is dirty, abort
+if ! git diff-index --quiet HEAD --; then
+  echo "Error: Git clone is dirty. Commit all changes before releasing."
+  exit 1
+fi
+
+# If the current Git clone is not at the tag, abort
+if ! git describe --exact-match --tags HEAD >/dev/null 2>&1; then
+  echo "Error: Git clone is not at the tag $TAG. Checkout the tag before releasing."
+  exit 1
+fi
+
 # Check if there is a passing GitHub workflow for the tag
 if ! gh run list --limit 1 --workflow ".github/workflows/release.yml" --branch "$TAG" --json conclusion -q '.[0].conclusion' | grep -q "success"; then
   echo "Error: No passing GitHub workflow found for tag $TAG."
@@ -72,7 +84,7 @@ for target in "${cross_targets[@]}"; do
   if [[ "$target" == "aarch64-apple-darwin" ]]; then
     "${SCRIPT_DIR}"/notarize.sh \
       --binary-path "${ROOT_DIR}/target/${target}/release/code-digest" \
-      --output-zip-path "${ROOT_DIR}target/${target}/release/code-digest.zip" \
+      --output-zip-path "${ROOT_DIR}target/${target}/release/code-digest-macos-arm64.zip" \
       --developer-id "$DEVELOPER_ID" \
       --apple-id "$APPLE_ID" \
       --app-specific-password "$APP_SPECIFIC_PASSWORD"
@@ -98,7 +110,7 @@ gh release create "$TAG" --title "Release $TAG" --notes "Release notes for $TAG"
 # Upload the artifacts
 for target in "${cross_targets[@]}"; do
   if [[ "$target" == "aarch64-apple-darwin" ]]; then
-    artifact="${ROOT_DIR}target/${target}/release/code-digest.zip"
+    artifact="${ROOT_DIR}target/${target}/release/code-digest-macos-arm64.zip"
     gh release upload "$TAG" "$artifact" --clobber
     continue
   fi
