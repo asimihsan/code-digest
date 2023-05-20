@@ -31,6 +31,11 @@ jobs:
           toolchain: nightly
           override: true
 
+      - name: Install cargo-checkmate and cargo-audit
+        run: |
+          cargo install cargo-checkmate
+          cargo install cargo-audit
+
       - name: Build
         uses: actions-rs/cargo@v1
         with:
@@ -48,11 +53,14 @@ jobs:
           RUSTDOCFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
 
       - name: rust-grcov
+        id: coverage
         uses: actions-rs/grcov@v0.1.5
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v3
         with:
           fail_ci_if_error: true
-          file: ${{ steps.rust-grcov.outputs.report }}
+          file: ${{ steps.coverage.outputs.report }}
 
+      - name: Run cargo checkmate
+        run: cargo checkmate
