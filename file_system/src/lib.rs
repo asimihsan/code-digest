@@ -89,7 +89,8 @@ pub fn get_files(path: PathBuf, ignore_dirs: &[PathBuf]) -> FileIterator {
     builder
         .git_ignore(true)
         .git_global(false)
-        .git_exclude(false);
+        .git_exclude(false)
+        .sort_by_file_path(|a, b| a.cmp(b));
 
     let mut override_builder = OverrideBuilder::new(path.clone());
     for ignore_dir in ignore_dirs {
