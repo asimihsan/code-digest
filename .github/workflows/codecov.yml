@@ -1,6 +1,9 @@
 on:
   push:
     branches: ["main"]
+  pull_request:
+    branches:
+      - '*'
 
 jobs:
   codecov:
@@ -30,6 +33,16 @@ jobs:
         with:
           toolchain: nightly
           override: true
+
+      - name: Cache cargo tools
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin
+          key: cargo-tools-${{ runner.os }}-${{ hashFiles('rust-toolchain.toml') }}
+          restore-keys: |
+            cargo-tools-${{ runner.os }}-${{ hashFiles('rust-toolchain.toml') }}-
+            cargo-tools-${{ runner.os }}-
 
       - name: Install cargo-checkmate, cargo-audit, cargo-fmt, cargo-clippy
         run: |

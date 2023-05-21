@@ -10,43 +10,27 @@
 
 use std::path::PathBuf;
 
-use clap::Parser;
-
 use file_system::{get_files, GlobPatternMatcher};
 use language_parsers::default_parse_config_for_language;
 
-use crate::file_processor::process_file;
+use crate::file_processor::{process_files, FileProcessorError};
 use crate::file_tree::{print_file_tree, CallbackArgs};
 
+mod config;
 mod file_processor;
 mod file_tree;
 
 #[global_allocator]
 static ALLOC: snmalloc_rs::SnMalloc = snmalloc_rs::SnMalloc;
 
-#[derive(Parser)]
-#[command(author, version, about, long_about = None)]
-struct Cli {
-    /// The path to the directory containing the files.
-    directory: String,
-
-    /// Additional directories to ignore (optional, zero or more)
-    #[clap(short = 'i', long)]
-    ignore: Vec<PathBuf>,
-
-    /// Glob patterns for which to include the full file contents, e.g. `*.md` (optional, zero or more)
-    #[clap(short = 'I', long)]
-    include: Vec<String>,
-
-    /// Print a file tree for each directory (optional, default false)
-    #[clap(short = 't', long)]
-    tree: bool,
-}
-
 pub fn main() {
-    let cli = Cli::parse();
+    let args: Vec<String> = std::env::args().collect();
+    let config = config::AppConfig::new(&args).unwrap_or_else(|e| {
+        eprintln!("Error parsing CLI arguments: {}", e);
+        std::process::exit(1);
+    });
 
-    let directory = shellexpand::full(cli.directory.as_str())
+    let directory = shellexpand::full(config.directory.as_str())
         .map_err(|e| {
             eprintln!("Error expanding directory: {}", e);
             std::process::exit(1);
@@ -54,11 +38,11 @@ pub fn main() {
         .unwrap();
     let directory = PathBuf::from(directory.as_ref());
     if !directory.is_dir() {
-        eprintln!("Not a directory: {}", cli.directory);
+        eprintln!("Not a directory: {}", &config.directory);
         std::process::exit(1);
     }
 
-    let ignore_dirs: Vec<PathBuf> = cli
+    let ignore_dirs: &Vec<PathBuf> = &config
         .ignore
         .iter()
         .map(|dir| shellexpand::full(dir.to_str().unwrap()).unwrap())
@@ -68,7 +52,7 @@ pub fn main() {
     // cli.include comes from a shell and should not include single quotes around e.g. '*.md'. But
     // if it does then we remove them here. Must be a matching pair of single quotes at the start
     // and end of the string.
-    let cli_include = cli
+    let cli_include = &config
         .include
         .iter()
         .map(|s| {
@@ -82,11 +66,11 @@ pub fn main() {
 
     let glob_matcher = GlobPatternMatcher::new_from_strings(cli_include).unwrap();
 
-    let files = get_files(directory, &ignore_dirs);
+    let files = get_files(directory, ignore_dirs);
     let go_config = default_parse_config_for_language(language_parsers::Language::Go);
     let rust_config = default_parse_config_for_language(language_parsers::Language::Rust);
 
-    if cli.tree {
+    if config.tree {
         print_file_tree(
             &files,
             |CallbackArgs {
@@ -105,17 +89,16 @@ pub fn main() {
         });
     }
 
-    for (i, file) in files.iter().enumerate() {
-        if file.kind != file_system::FileKind::File {
-            continue;
-        }
-        if let Err(e) = process_file(&file.path, &go_config, &rust_config, &glob_matcher, |s| {
-            println!("{}", s);
-        }) {
-            eprintln!("Error processing file {}: {}", file.path.display(), e);
-        }
-        if i < files.len() - 1 {
-            println!();
+    for file_result in process_files(&files, &go_config, &rust_config, &glob_matcher) {
+        match file_result {
+            Ok(file) => {
+                println!("{}", file);
+            }
+            Err(FileProcessorError::UnsupportedFileKind(_)) => {}
+            Err(FileProcessorError::FileSkipped(_)) => {}
+            _ => {
+                eprintln!("Error processing file: {:?}\n", file_result);
+            }
         }
     }
 }
