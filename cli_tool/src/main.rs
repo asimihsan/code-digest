@@ -13,7 +13,7 @@ use std::path::PathBuf;
 use file_system::{get_files, GlobPatternMatcher};
 use language_parsers::default_parse_config_for_language;
 
-use crate::file_processor::process_files;
+use crate::file_processor::{process_files, FileProcessorError};
 use crate::file_tree::{print_file_tree, CallbackArgs};
 
 mod config;
@@ -89,5 +89,16 @@ pub fn main() {
         });
     }
 
-    process_files(&files, &go_config, &rust_config, &glob_matcher);
+    for file_result in process_files(&files, &go_config, &rust_config, &glob_matcher) {
+        match file_result {
+            Ok(file) => {
+                println!("{}", file);
+            }
+            Err(FileProcessorError::UnsupportedFileKind(_)) => {}
+            Err(FileProcessorError::FileSkipped(_)) => {}
+            _ => {
+                eprintln!("Error processing file: {:?}\n", file_result);
+            }
+        }
+    }
 }
