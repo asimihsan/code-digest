@@ -107,7 +107,7 @@ mod tests {
     fn test_process_file_rust() {
         let rust_config = default_parse_config_for_language(Language::Rust);
         let go_config = default_parse_config_for_language(Language::Go);
-        let glob_matcher = GlobPatternMatcher::new_from_strings(&vec![]).unwrap();
+        let glob_matcher = GlobPatternMatcher::new_from_strings(&[]).unwrap();
 
         // Create a temporary file with Rust code
         let temp_dir = tempfile::tempdir().unwrap();

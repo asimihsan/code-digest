@@ -89,6 +89,6 @@ mod tests {
         assert_eq!(app_config.directory, "/path/to/directory");
         assert_eq!(app_config.ignore, vec![PathBuf::from("/path/to/ignore")]);
         assert_eq!(app_config.include, vec!["*.md"]);
-        assert_eq!(app_config.tree, true);
+        assert!(app_config.tree);
     }
 }
