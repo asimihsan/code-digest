@@ -145,7 +145,7 @@ mod tests {
         );
         assert!(result.is_ok());
 
-        let expected_output = "\
+        let expected_output_1 = "\
 .
 ├── a
 │   ├── file_a1.txt
@@ -154,7 +154,20 @@ mod tests {
 │   ├── file_b1.txt
 ";
 
+        // could also be b first
+        let expected_output_2 = "\
+.
+├── b
+│   ├── file_b1.txt
+├── a
+│   ├── file_a1.txt
+│   ├── file_a2.txt
+";
+
         println!("output: {}", output);
-        assert_eq!(output, expected_output);
+
+        let expected_output =
+            expected_output_1.to_string() == output || expected_output_2.to_string() == output;
+        assert!(expected_output);
     }
 }
