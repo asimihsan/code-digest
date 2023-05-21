@@ -104,7 +104,6 @@ fn print_indent(
 
 #[cfg(test)]
 mod tests {
-    use std::assert_eq;
     use std::fs::File;
 
     use tempfile::tempdir;
@@ -166,8 +165,7 @@ mod tests {
 
         println!("output: {}", output);
 
-        let expected_output =
-            expected_output_1.to_string() == output || expected_output_2.to_string() == output;
+        let expected_output = *expected_output_1 == output || *expected_output_2 == output;
         assert!(expected_output);
     }
 }
