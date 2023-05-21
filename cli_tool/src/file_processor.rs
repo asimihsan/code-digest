@@ -18,6 +18,27 @@ pub enum FileProcessorError {
     ErrorReadingFile(#[from] std::io::Error),
 }
 
+pub fn process_files(
+    files: &[file_system::File],
+    go_config: &ParseConfig,
+    rust_config: &ParseConfig,
+    glob_matcher: &GlobPatternMatcher,
+) {
+    for (i, file) in files.iter().enumerate() {
+        if file.kind != file_system::FileKind::File {
+            continue;
+        }
+        if let Err(e) = process_file(&file.path, go_config, rust_config, glob_matcher, |s| {
+            println!("{}", s);
+        }) {
+            eprintln!("Error processing file {}: {}", file.path.display(), e);
+        }
+        if i < files.len() - 1 {
+            println!();
+        }
+    }
+}
+
 pub fn process_file(
     file_path: &Path,
     go_config: &ParseConfig,
@@ -86,7 +107,7 @@ mod tests {
     fn test_process_file_rust() {
         let rust_config = default_parse_config_for_language(Language::Rust);
         let go_config = default_parse_config_for_language(Language::Go);
-        let glob_matcher = GlobPatternMatcher::new_from_strings(vec![]).unwrap();
+        let glob_matcher = GlobPatternMatcher::new_from_strings(&vec![]).unwrap();
 
         // Create a temporary file with Rust code
         let temp_dir = tempfile::tempdir().unwrap();
@@ -105,7 +126,8 @@ fn main() {
         process_file(&file_path, &go_config, &rust_config, &glob_matcher, |s| {
             actual_output.push_str(s);
             actual_output.push('\n');
-        });
+        })
+        .expect("Error processing file");
 
         let expected_output = format!(
             r#"`{}`

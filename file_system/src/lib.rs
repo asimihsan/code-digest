@@ -108,7 +108,7 @@ impl GlobPatternMatcher {
             glob_patterns: Vec::new(),
         }
     }
-    pub fn new_from_strings(glob_patterns: Vec<String>) -> Result<Self, glob::PatternError> {
+    pub fn new_from_strings(glob_patterns: &[String]) -> Result<Self, glob::PatternError> {
         let mut result = GlobPatternMatcher::new();
         for glob_pattern in glob_patterns {
             result.add_glob_pattern(&glob_pattern)?;
