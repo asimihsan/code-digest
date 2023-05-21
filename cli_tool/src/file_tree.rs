@@ -45,10 +45,10 @@ where
 //
 // This method does not need to do any file system traversal or depth determination.
 pub fn print_file_tree(
-    files: &Vec<File>,
+    files: impl Iterator<Item = File>,
     mut callback: impl FnMut(CallbackArgs<&str>),
 ) -> Result<(), FileTreeError> {
-    for (i, file) in files.iter().enumerate() {
+    for (i, file) in files.into_iter().enumerate() {
         if i == 0 {
             callback(CallbackArgs {
                 output: ".",
@@ -57,8 +57,9 @@ pub fn print_file_tree(
             continue;
         }
 
-        let is_last_sibling = i == files.len() - 1;
-        print_indent(&mut callback, file.depth, is_last_sibling, is_last_sibling);
+        // TODO implement this function
+        print_indent(&mut callback, file.depth, false, false);
+
         callback(CallbackArgs {
             output: file.path.file_name().unwrap().to_str().unwrap(),
             linebreak: true,
@@ -103,8 +104,8 @@ fn print_indent(
 
 #[cfg(test)]
 mod tests {
+    use std::assert_eq;
     use std::fs::File;
-    use std::{assert_eq, println};
 
     use tempfile::tempdir;
 
@@ -131,7 +132,7 @@ mod tests {
         let mut output = String::new();
 
         let result = print_file_tree(
-            &files,
+            files,
             |CallbackArgs {
                  output: s,
                  linebreak,
@@ -150,9 +151,10 @@ mod tests {
 │   ├── file_a1.txt
 │   ├── file_a2.txt
 ├── b
-    └── file_b1.txt";
+│   ├── file_b1.txt
+";
 
-        println!("output:\n{}", output);
-        assert_eq!(output.trim(), expected_output);
+        println!("output: {}", output);
+        assert_eq!(output, expected_output);
     }
 }

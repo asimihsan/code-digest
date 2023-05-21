@@ -34,12 +34,12 @@ pub enum FileProcessorError {
 }
 
 pub fn process_files<'a>(
-    files: &'a [file_system::File],
+    files: impl Iterator<Item = file_system::File> + 'a,
     go_config: &'a ParseConfig,
     rust_config: &'a ParseConfig,
     glob_matcher: &'a GlobPatternMatcher,
 ) -> impl Iterator<Item = Result<String, FileProcessorError>> + 'a {
-    files.iter().filter_map(move |file| {
+    files.into_iter().filter_map(move |file| {
         if file.kind != file_system::FileKind::File {
             return None;
         }
@@ -101,9 +101,12 @@ pub fn process_file(
         _ => unreachable!(),
     }
 
-    for key_content in &parsed {
+    for (i, key_content) in parsed.iter().enumerate() {
         output.push_str(&key_content.content.to_string());
         output.push('\n');
+        if i < parsed.len() - 1 {
+            output.push('\n');
+        }
     }
     output.push_str("```\n");
 
@@ -204,7 +207,7 @@ func main() {
         ];
 
         let results: Vec<_> =
-            process_files(&files, &go_config, &rust_config, &glob_matcher).collect();
+            process_files(files.into_iter(), &go_config, &rust_config, &glob_matcher).collect();
 
         assert_eq!(results.len(), 2);
 
@@ -222,6 +225,7 @@ fn main() {{
             r#"`{}`
 ```go
 import "fmt"
+
 func main() {{
 	// ...
 }}

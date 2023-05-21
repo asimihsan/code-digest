@@ -66,13 +66,12 @@ pub fn main() {
 
     let glob_matcher = GlobPatternMatcher::new_from_strings(cli_include).unwrap();
 
-    let files = get_files(directory, ignore_dirs);
     let go_config = default_parse_config_for_language(language_parsers::Language::Go);
     let rust_config = default_parse_config_for_language(language_parsers::Language::Rust);
 
     if config.tree {
         print_file_tree(
-            &files,
+            get_files(directory.clone(), ignore_dirs),
             |CallbackArgs {
                  output: s,
                  linebreak,
@@ -89,7 +88,12 @@ pub fn main() {
         });
     }
 
-    for file_result in process_files(&files, &go_config, &rust_config, &glob_matcher) {
+    for file_result in process_files(
+        get_files(directory.clone(), ignore_dirs),
+        &go_config,
+        &rust_config,
+        &glob_matcher,
+    ) {
         match file_result {
             Ok(file) => {
                 println!("{}", file);

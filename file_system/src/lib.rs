@@ -46,8 +46,45 @@ impl Ord for File {
     }
 }
 
-pub fn get_files(path: PathBuf, ignore_dirs: &[PathBuf]) -> Vec<File> {
-    let mut result = Vec::new();
+pub struct FileIterator {
+    walker: ignore::Walk,
+    path: PathBuf,
+}
+
+impl Iterator for FileIterator {
+    type Item = File;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            match self.walker.next() {
+                Some(Ok(entry)) => {
+                    let subpath = entry.path();
+                    let relative_path = subpath.strip_prefix(&self.path).unwrap();
+                    let depth = relative_path.components().count() as isize;
+                    let file = File {
+                        path: subpath.to_path_buf(),
+                        kind: if subpath.is_dir() {
+                            FileKind::Directory
+                        } else {
+                            FileKind::File
+                        },
+                        depth,
+                    };
+                    return Some(file);
+                }
+                Some(Err(err)) => {
+                    eprintln!("Error: {}", err);
+                    std::process::exit(1);
+                }
+                None => {
+                    return None;
+                }
+            }
+        }
+    }
+}
+
+pub fn get_files(path: PathBuf, ignore_dirs: &[PathBuf]) -> FileIterator {
     let mut builder = WalkBuilder::new(path.clone());
     builder
         .git_ignore(true)
@@ -64,32 +101,7 @@ pub fn get_files(path: PathBuf, ignore_dirs: &[PathBuf]) -> Vec<File> {
     builder.overrides(override_builder.build().unwrap());
 
     let walker = builder.build();
-    for entry in walker {
-        match entry {
-            Ok(entry) => {
-                let subpath = entry.path();
-                let relative_path = subpath.strip_prefix(&path).unwrap();
-                let depth = relative_path.components().count() as isize;
-                let file = File {
-                    path: subpath.to_path_buf(),
-                    kind: if subpath.is_dir() {
-                        FileKind::Directory
-                    } else {
-                        FileKind::File
-                    },
-                    depth,
-                };
-                result.push(file);
-            }
-            Err(err) => {
-                eprintln!("Error: {}", err);
-                std::process::exit(1);
-            }
-        }
-    }
-
-    result.sort();
-    result
+    FileIterator { walker, path }
 }
 
 pub struct GlobPatternMatcher {
@@ -195,6 +207,7 @@ mod tests {
         let ignore_dirs = Vec::new();
 
         let files = get_files(temp_dir.path().to_path_buf(), &ignore_dirs);
+        let files: Vec<_> = files.collect();
 
         assert_eq!(files.len(), 6);
         assert_eq!(files[0].path, temp_dir.path().to_path_buf());
