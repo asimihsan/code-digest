@@ -36,7 +36,7 @@ jobs:
           cargo install cargo-checkmate
           cargo install cargo-audit
           rustup component add rustfmt --toolchain nightly
-          cargo install cargo-clippy
+          rustup component add clippy --toolchain nightly
 
       - name: Build
         uses: actions-rs/cargo@v1
