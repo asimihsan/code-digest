@@ -1,6 +1,13 @@
 coverage:
-    status:
-      patch: off
-      project:
-        default:
-          threshold: 1%
+  range: "50..75"
+  round: down
+  precision: 0
+  status:
+    patch: off
+    project:
+      default:
+        # Auto compares coverage to the last commit on the base branch.
+        target: auto
+
+        # Leniency in maintaining or increasing coverage.
+        threshold: 1%
