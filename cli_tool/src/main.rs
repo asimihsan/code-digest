@@ -109,9 +109,11 @@ pub fn main() {
         if file.kind != file_system::FileKind::File {
             continue;
         }
-        process_file(&file.path, &go_config, &rust_config, &glob_matcher, |s| {
+        if let Err(e) = process_file(&file.path, &go_config, &rust_config, &glob_matcher, |s| {
             println!("{}", s);
-        });
+        }) {
+            eprintln!("Error processing file {}: {}", file.path.display(), e);
+        }
         if i < files.len() - 1 {
             println!();
         }

@@ -12,25 +12,31 @@ use file_system::GlobPatternMatcher;
 use language_parsers::{parse, ParseConfig};
 use std::path::Path;
 
+#[derive(thiserror::Error, Debug)]
+pub enum FileProcessorError {
+    #[error("Error reading file: {0}")]
+    ErrorReadingFile(#[from] std::io::Error),
+}
+
 pub fn process_file(
     file_path: &Path,
     go_config: &ParseConfig,
     rust_config: &ParseConfig,
     glob_matcher: &GlobPatternMatcher,
     mut callback: impl FnMut(&str),
-) {
+) -> Result<(), FileProcessorError> {
+    let source_code =
+        std::fs::read_to_string(file_path).map_err(FileProcessorError::ErrorReadingFile)?;
+
     if glob_matcher.matches(file_path) {
         callback(&format!("`{}`", file_path.display()));
-        let source_code = std::fs::read_to_string(file_path).expect("Unable to read file");
         callback(&format!("```\n{}\n```\n", source_code));
-        return;
+        return Ok(());
     }
-
-    let source_code = std::fs::read_to_string(file_path).expect("Unable to read file");
 
     let extension = file_path.extension();
     if extension.is_none() {
-        return;
+        return Ok(());
     }
     let extension = extension.unwrap().to_str().unwrap();
     let result = match extension {
@@ -42,9 +48,7 @@ pub fn process_file(
             eprintln!("Error parsing file: {}", e);
             std::process::exit(1);
         }),
-        _ => {
-            return;
-        }
+        _ => return Ok(()),
     };
 
     callback(&format!("`{}`", file_path.display()));
@@ -68,6 +72,8 @@ pub fn process_file(
         }
     }
     callback("```");
+
+    Ok(())
 }
 
 #[cfg(test)]
