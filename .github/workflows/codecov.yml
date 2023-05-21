@@ -46,8 +46,12 @@ jobs:
 
       - name: Install cargo-checkmate, cargo-audit, cargo-fmt, cargo-clippy
         run: |
-          cargo install cargo-checkmate
-          cargo install cargo-audit
+          if [ ! -f ~/.cargo/bin/cargo-checkmate ]; then
+            cargo install cargo-checkmate
+          fi
+          if [ ! -f ~/.cargo/bin/cargo-audit ]; then
+            cargo install cargo-audit
+          fi
           rustup component add rustfmt --toolchain nightly
           rustup component add clippy --toolchain nightly
 
