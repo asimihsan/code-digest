@@ -89,7 +89,7 @@ pub fn main() {
     }
 
     for file_result in process_files(
-        get_files(directory.clone(), ignore_dirs),
+        get_files(directory, ignore_dirs),
         &go_config,
         &rust_config,
         &glob_matcher,
