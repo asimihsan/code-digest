@@ -16,6 +16,9 @@ use clap::Parser;
 pub enum ConfigError {
     #[error("Failed to parse CLI arguments: {0}")]
     CliError(#[from] clap::Error),
+
+    #[error("Display help or version")]
+    DisplayHelpOrVersion(clap::Error),
 }
 
 #[derive(Debug, Clone)]
@@ -35,7 +38,18 @@ pub struct AppConfig {
 
 impl AppConfig {
     pub fn new(args: &[String]) -> Result<Self, ConfigError> {
-        let cli = Cli::try_parse_from(args)?;
+        let cli = match Cli::try_parse_from(args) {
+            Ok(cli) => cli,
+            Err(e)
+                if e.kind() == clap::error::ErrorKind::DisplayHelp
+                    || e.kind() == clap::error::ErrorKind::DisplayVersion =>
+            {
+                return Err(ConfigError::DisplayHelpOrVersion(e));
+            }
+            Err(e) => {
+                return Err(ConfigError::CliError(e));
+            }
+        };
         Ok(Self {
             directory: cli.directory,
             ignore: cli.ignore,

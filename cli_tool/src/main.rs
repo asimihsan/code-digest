@@ -26,6 +26,9 @@ static ALLOC: snmalloc_rs::SnMalloc = snmalloc_rs::SnMalloc;
 pub fn main() {
     let args: Vec<String> = std::env::args().collect();
     let config = config::AppConfig::new(&args).unwrap_or_else(|e| {
+        if let config::ConfigError::DisplayHelpOrVersion(clap_error) = e {
+            clap_error.exit();
+        }
         eprintln!("Error parsing CLI arguments: {}", e);
         std::process::exit(1);
     });
