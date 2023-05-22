@@ -41,7 +41,7 @@ code-digest can be easily adapted to various use cases and requirements.
 
 ```shell
 brew tap asimihsan/code-digest
-brew install code-digest
+brew install asimihsan/code-digest/code-digest
 ```
 
 ## Examples
