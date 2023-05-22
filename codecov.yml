@@ -1,13 +1,31 @@
+# Google Best Practices Reference: https://testing.googleblog.com/2020/08/code-coverage-best-practices.html
+
 coverage:
+  # Set the coverage range based on Google's definitions:
+  # 50% as "acceptable", 75% as "commendable"
+  # Reference: https://testing.googleblog.com/2020/08/code-coverage-best-practices.html
   range: "50..75"
   round: down
   precision: 0
   status:
-    patch: off
+    # Add a per-commit coverage goal based on Google's suggestion:
+    # 90% as a good lower threshold for new code in each commit
+    # Reference: https://testing.googleblog.com/2020/08/code-coverage-best-practices.html
+    patch:
+      default:
+        target: 90%
+        threshold: 1%
     project:
       default:
         # Auto compares coverage to the last commit on the base branch.
         target: auto
 
         # Leniency in maintaining or increasing coverage.
+        # Reference: https://testing.googleblog.com/2020/08/code-coverage-best-practices.html
         threshold: 1%
+
+        # Enforce gating deployments based on Google's recommendation:
+        # Treat missing coverage data or CI failures as errors
+        # Reference: https://testing.googleblog.com/2020/08/code-coverage-best-practices.html
+        if_not_found: failure
+        if_ci_failed: error
