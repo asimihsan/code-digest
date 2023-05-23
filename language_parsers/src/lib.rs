@@ -175,6 +175,38 @@ pub fn default_parse_config_for_language(language: Language) -> ParseConfig {
             ));
             config
         }
+        Language::Python => {
+            let mut config = ParseConfig::new(language, Indentation::Spaces(4));
+            config.add_selector(Selector::new("module", SelectorAction::SelectOnly));
+            config.add_selector(Selector::new(
+                "future_import_statement",
+                SelectorAction::CaptureAll,
+            ));
+            config.add_selector(Selector::new(
+                "import_from_statement",
+                SelectorAction::CaptureAll,
+            ));
+            config.add_selector(Selector::new(
+                "import_statement",
+                SelectorAction::CaptureAll,
+            ));
+            config.add_selector(Selector::new(
+                "function_definition",
+                SelectorAction::CaptureWithoutBlock,
+            ));
+
+            // class definitions are special because we want the class line, all fields, but also
+            // we want all static and instance methods but elided without blocks.
+            config.add_selector(Selector::new(
+                "class_definition",
+                SelectorAction::Custom(Box::new(|node, _cursor, source_code| {
+                    let result = String::new();
+                    Ok(result)
+                })),
+            ));
+
+            config
+        }
         _ => todo!(),
     }
 }
@@ -194,6 +226,7 @@ pub fn parse(source_code: &str, config: &ParseConfig) -> ParseResult<Vec<KeyCont
         }
         let node = queue.pop_front().unwrap();
         let node_kind = node.kind();
+        println!("node_kind: {}", node_kind);
 
         // if there is no selector action, continue
         let selector_action = config.get_selector_action(node_kind);
@@ -371,6 +404,42 @@ pub fn area(shape: &Shape) -> f64 {
             r#"pub fn area(shape: &Shape) -> f64 {
     // ...
 }"#
+        );
+    }
+
+    #[test]
+    fn test_parse_python() {
+        let source_code = r#"
+import math
+from typing import List, Tuple
+
+class MyClass:
+    """A simple example class"""
+    i = 12345
+    
+    def f(self):
+        return 'hello world'
+
+def f():
+    return 'hello world'
+"#;
+        let config = default_parse_config_for_language(Language::Python);
+        let result = parse(source_code, &config).unwrap();
+        assert_eq!(result.len(), 4);
+        assert_eq!(result[0].content, "import math");
+        assert_eq!(result[1].content, "from typing import List, Tuple");
+        assert_eq!(
+            result[2].content,
+            r#"class MyClass:
+    """A simple example class"""
+    i = 12345
+
+    def f(self):
+        // ...
+
+def f():
+    // ...
+"#
         );
     }
 }

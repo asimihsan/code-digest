@@ -30,8 +30,8 @@ code-digest can be easily adapted to various use cases and requirements.
 
 ## Features
 
-- Support for multiple programming languages, including Go, HCL, Java, Python,
-  and Rust
+- Support for multiple programming languages, including Go and Rust (TODO HCL,
+  Java, and Python)
 - Flexible parsing system with customizable selectors and actions
 - Efficient file system traversal with support for ignoring specific directories
 - Cross-compilation to Android, iOS, and other platforms (library only)
