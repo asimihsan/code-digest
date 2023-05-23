@@ -199,7 +199,7 @@ pub fn default_parse_config_for_language(language: Language) -> ParseConfig {
             // we want all static and instance methods but elided without blocks.
             config.add_selector(Selector::new(
                 "class_definition",
-                SelectorAction::Custom(Box::new(|node, cursor, source_code| {
+                SelectorAction::Custom(Box::new(|node, _cursor, source_code| {
                     let node_start = node.start_byte();
                     for i in 0..node.child_count() {
                         let child = node.child(i).unwrap();
@@ -207,8 +207,8 @@ pub fn default_parse_config_for_language(language: Language) -> ParseConfig {
                         if kind == "block" {
                             let end = child.start_byte();
                             let source = source_code.as_bytes()[node_start..end].to_vec();
-                            let result = String::from_utf8(source).unwrap();
-                            let x = 1 + 2;
+                            let _result = String::from_utf8(source).unwrap();
+                            let _x = 1 + 2;
                         }
                     }
                     let result = String::new();
