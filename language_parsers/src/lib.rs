@@ -10,8 +10,9 @@
 
 use std::collections::{HashMap, VecDeque};
 
-use crate::tree_sitter_parse::{from_language, to_tree};
 use tree_sitter as ts;
+
+use crate::tree_sitter_parse::{from_language, to_tree};
 
 mod tree_sitter_parse;
 
@@ -34,7 +35,8 @@ pub enum ParseError {
 }
 
 type ParseResult<T, E = ParseError> = Result<T, E>;
-type SelectorFunction = dyn Fn(&ts::Node, &mut ts::TreeCursor, &str) -> ParseResult<String>;
+type SelectorFunction =
+    dyn Fn(ts::Node, &mut ts::TreeCursor, &str, &mut ParseState) -> ParseResult<String>;
 
 // SelectorType lets you choose which tree-sitter AST nodes to select (traverse), which to capture,
 // and if captured whether or not to elide the block contents. You need to select AST nodes that
@@ -135,7 +137,7 @@ pub fn default_parse_config_for_language(language: Language) -> ParseConfig {
             // struct_type then get all the content of the top-most type_declaration
             config.add_selector(Selector::new(
                 "type_declaration",
-                SelectorAction::Custom(Box::new(|node, _cursor, source_code| {
+                SelectorAction::Custom(Box::new(|node, _cursor, source_code, _parser_state| {
                     let _node_start_position = node.start_position();
                     let _node_end_position = node.end_position();
                     let type_spec = node.child(1);
@@ -199,21 +201,26 @@ pub fn default_parse_config_for_language(language: Language) -> ParseConfig {
             // we want all static and instance methods but elided without blocks.
             config.add_selector(Selector::new(
                 "class_definition",
-                SelectorAction::Custom(Box::new(|node, _cursor, source_code| {
-                    let node_start = node.start_byte();
-                    for i in 0..node.child_count() {
-                        let child = node.child(i).unwrap();
-                        let kind = child.kind();
-                        if kind == "block" {
-                            let end = child.start_byte();
-                            let source = source_code.as_bytes()[node_start..end].to_vec();
-                            let _result = String::from_utf8(source).unwrap();
-                            let _x = 1 + 2;
+                SelectorAction::Custom(Box::new(
+                    |node, _cursor, source_code, parser_state: &mut ParseState| {
+                        let mut result = String::new();
+                        let node_start = node.start_byte();
+                        for i in 0..node.child_count() {
+                            let child = node.child(i).unwrap();
+                            let kind = child.kind();
+                            if kind == "block" {
+                                let end = child.start_byte();
+                                let source = source_code.as_bytes()[node_start..end].to_vec();
+                                result = String::from_utf8(source).unwrap();
+
+                                parser_state.queue.push_front(QueueItem::Sentinel);
+                                parser_state.queue.push_front(QueueItem::Node(child, true));
+                            }
                         }
-                    }
-                    let result = String::new();
-                    Ok(result)
-                })),
+
+                        Ok(result)
+                    },
+                )),
             ));
 
             config
@@ -222,20 +229,88 @@ pub fn default_parse_config_for_language(language: Language) -> ParseConfig {
     }
 }
 
-pub fn parse(source_code: &str, config: &ParseConfig) -> ParseResult<Vec<KeyContent>> {
-    let mut result = vec![];
+#[derive(Clone)]
+struct Accumulator {
+    content: Vec<String>,
+}
 
+impl Accumulator {
+    fn new() -> Accumulator {
+        Accumulator {
+            content: Vec::new(),
+        }
+    }
+
+    fn add_content(&mut self, content: String) {
+        self.content.push(content);
+    }
+
+    fn finalize(&self) -> KeyContent {
+        KeyContent {
+            content: self.content.join("\n"),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum QueueItem<'a> {
+    Node(ts::Node<'a>, bool),
+    Sentinel,
+}
+
+#[derive(Clone)]
+pub struct ParseState<'a> {
+    queue: VecDeque<QueueItem<'a>>,
+    accumulator: Accumulator,
+    result: Vec<KeyContent>,
+    is_accumulating: bool,
+}
+
+impl<'a> ParseState<'a> {
+    fn update_content(&mut self, content: String) {
+        if self.is_accumulating {
+            self.accumulator.add_content(content);
+        } else {
+            self.result.push(KeyContent { content });
+        }
+    }
+
+    fn finalize_accumulator(&mut self) {
+        let content = self.accumulator.finalize();
+        self.result.push(content);
+        self.accumulator = Accumulator::new();
+    }
+}
+
+pub fn parse(source_code: &str, config: &ParseConfig) -> ParseResult<Vec<KeyContent>> {
     let tree = to_tree(source_code, &config.language_config).unwrap();
     let root_node = tree.root_node();
-
     let cursor = &mut root_node.walk();
-    let mut queue: VecDeque<ts::Node> = VecDeque::new();
-    queue.push_back(root_node);
+
+    let mut state = ParseState {
+        queue: VecDeque::new(),
+        accumulator: Accumulator::new(),
+        result: Vec::new(),
+        is_accumulating: false,
+    };
+    state.queue.push_back(QueueItem::Node(root_node, false));
+
     loop {
-        if queue.is_empty() {
+        if state.queue.is_empty() {
             break;
         }
-        let node = queue.pop_front().unwrap();
+        let queue_item = state.queue.pop_front().unwrap();
+
+        let node = match queue_item {
+            QueueItem::Node(node, is_accumulating) => {
+                state.is_accumulating = is_accumulating;
+                node
+            }
+            QueueItem::Sentinel => {
+                state.finalize_accumulator();
+                continue;
+            }
+        };
         let node_kind = node.kind();
         println!("node_kind: {}", node_kind);
 
@@ -249,12 +324,12 @@ pub fn parse(source_code: &str, config: &ParseConfig) -> ParseResult<Vec<KeyCont
         match selector_action {
             SelectorAction::SelectOnly => {
                 for child in node.children(cursor) {
-                    queue.push_back(child);
+                    state.queue.push_back(QueueItem::Node(child, false));
                 }
             }
             SelectorAction::CaptureWithoutBlock => {
                 let content = block_like_to_string(node, cursor, source_code, config);
-                result.push(KeyContent { content });
+                state.update_content(content);
             }
             SelectorAction::CaptureAll => {
                 let content = node
@@ -262,16 +337,15 @@ pub fn parse(source_code: &str, config: &ParseConfig) -> ParseResult<Vec<KeyCont
                     .unwrap()
                     .trim()
                     .to_string();
-                result.push(KeyContent { content });
+                state.update_content(content);
             }
             SelectorAction::Custom(action) => {
-                let content = action(&node, cursor, source_code)?;
-                result.push(KeyContent { content });
+                action(node, cursor, source_code, &mut state)?;
             }
         }
     }
 
-    Ok(result)
+    Ok(state.result)
 }
 
 fn block_like_to_string<'a>(
@@ -303,8 +377,9 @@ fn block_like_to_string<'a>(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::assert_eq;
+
+    use super::*;
 
     #[test]
     fn test_parse_go() {
