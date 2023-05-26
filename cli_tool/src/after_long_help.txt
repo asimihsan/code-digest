@@ -1,0 +1,10 @@
+Examples:
+
+  Analyze a project and extract key content:
+      code-digest /path/to/directory
+
+  Analyze a project, ignore a directory, and print a file tree.
+      code-digest --ignore /path/to/ignore --tree /path/to/directory
+
+  Analyze a project and include all '*.md' files
+      code-digest --include '*.md' /path/to/directory

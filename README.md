@@ -5,9 +5,9 @@
 <p align="center">
     <a href="#overview">Overview</a> •
     <a href="#features">Features</a> •
+    <a href="#usage">Usage</a> •
     <a href="#install">Install</a> •
     <a href="#examples">Examples</a> •
-    <a href="#usage">Usage</a> •
     <a href="#library">Library</a> •
     <a href="#cli-tool">CLI Tool</a> •
     <a href="#cross-compilation">Cross-Compilation</a> •
@@ -30,12 +30,51 @@ code-digest can be easily adapted to various use cases and requirements.
 
 ## Features
 
-- Support for multiple programming languages, including Go, HCL, Java, Python,
-  and Rust
-- Flexible parsing system with customizable selectors and actions
+- Support for multiple programming languages, with current support for Go and
+  Rust, and upcoming support for HCL, Java, and Python.
+- Flexible parsing system with customizable selectors and actions, allowing you
+  to extract the most relevant information from your codebase.
 - Efficient file system traversal with support for ignoring specific directories
-- Cross-compilation to Android, iOS, and other platforms (library only)
-- Command-line interface (CLI) tool for easy integration into existing workflows
+  and including files based on glob patterns.
+- Command-line interface (CLI) tool for easy integration into existing
+  workflows, with options to customize the output and display file trees.
+- Library for integration into your own projects, providing more control and
+  customization over the parsing process.
+
+## Usage
+
+code-digest can be used as a library or a command-line interface (CLI) tool.
+This section focuses on using the CLI tool for quick and easy integration into
+your existing workflows.
+
+### Quick Start
+
+To analyze a codebase and extract key content, run the following command:
+
+```sh
+code-digest --directory /path/to/your/project --ignore /path/to/ignore/directory
+```
+
+By default, code-digest will elide function bodies while keeping structs, types,
+and other important information.
+
+### CLI Tool Options
+
+The CLI tool provides several options to customize its behavior:
+
+- `--directory`: The path to the directory containing the source files.
+- `--ignore`: Additional directories to ignore (optional, can be specified
+  multiple times).
+- `--include`: Glob patterns for which to include the full file contents, e.g.,
+  *.md (optional, can be specified multiple times).
+- `--tree`: Print a file tree for each directory (optional, default false).
+
+For example, to analyze a Rust project, include all *.md files, and print a file
+tree, run:
+
+```sh
+code-digest --directory /path/to/your/project --ignore /path/to/ignore/directory --include "*.md" --tree
+```
 
 ## Install
 
@@ -95,54 +134,6 @@ pub fn area(shape: &Shape) -> f64 {
 }
 ```
 
-## Usage
-
-To use `code-digest`, you can either integrate the library into your own project
-or use the provided CLI tool.
-
-### Library
-
-The `code-digest` library provides a set of functions and structures for parsing
-source code and extracting key information. To use the library, simply add it as
-a dependency in your project and import the necessary modules.
-
-For example, to parse a Rust source file and extract key content, you can use
-the following code:
-
-```rust
-use code_digest::language_parsers::{default_parse_config_for_language, parse};
-use code_digest::Language;
-
-let source_code = "..."; // Your Rust source code
-let config = default_parse_config_for_language(Language::Rust);
-let result = parse(source_code, &config);
-
-match result {
-    Ok(key_contents) => {
-        for key_content in key_contents {
-            println!("{}", key_content.content);
-        }
-    }
-    Err(error) => {
-        eprintln!("Error: {}", error);
-    }
-}
-```
-
-### CLI Tool
-
-The CLI tool provides a convenient way to use `code-digest` without integrating
-it into your own project. To use the CLI tool, simply run it with the
-appropriate arguments, specifying the directory containing the source files and
-any additional directories to ignore.
-
-For example, to analyze a Rust project and extract key content, you can run the
-following command:
-
-```sh
-code-digest --directory /path/to/your/project --ignore /path/to/ignore/directory
-```
-
 ## Cross-Compilation
 
 The `code-digest` library can be cross-compiled to various platforms, including
@@ -163,10 +154,12 @@ demonstration of the library's capabilities.
     security find-identity -v
     ```
 
-2. Generate an app-specific password in your Apple ID account then put it into Keychain undedr the name `AC_PASSWORD`.
+2. Generate an app-specific password in your Apple ID account then put it into
+   Keychain undedr the name `AC_PASSWORD`.
 3. Create a bundle ID in Apple, e.g. `com.foo.baz`.
 4. Use `.env.template` to create `.env` and fill in the values.
-5. You need a developer certificate, see https://developer.apple.com/help/account/create-certificates/create-developer-id-certificates
+5. You need a developer certificate, see
+   https://developer.apple.com/help/account/create-certificates/create-developer-id-certificates
 
 #### Steps
 
