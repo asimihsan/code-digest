@@ -11,6 +11,7 @@
 use std::path::PathBuf;
 
 use clap::Parser;
+use once_cell::sync::OnceCell;
 
 #[derive(thiserror::Error, Debug)]
 pub enum ConfigError {
@@ -59,8 +60,29 @@ impl AppConfig {
     }
 }
 
+fn long_about() -> &'static str {
+    static INSTANCE: OnceCell<String> = OnceCell::new();
+    INSTANCE.get_or_init(|| {
+        let long_about = include_str!("./long_about.txt").trim();
+        long_about.to_string()
+    })
+}
+
+fn after_long_help() -> &'static str {
+    static INSTANCE: OnceCell<String> = OnceCell::new();
+    INSTANCE.get_or_init(|| {
+        let after_long_help = include_str!("./after_long_help.txt").trim();
+        after_long_help.to_string()
+    })
+}
+
 #[derive(Parser)]
-#[command(author, version, about, long_about = None)]
+#[command(
+    author,
+    version,
+    long_about = long_about(),
+    after_long_help = after_long_help()
+)]
 pub struct Cli {
     /// The path to the directory containing the files.
     pub directory: String,
@@ -81,6 +103,7 @@ pub struct Cli {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::{assert_eq, vec};
 
     #[test]
     fn test_parse_cli_args() {
