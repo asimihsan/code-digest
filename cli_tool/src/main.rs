@@ -20,9 +20,6 @@ mod config;
 mod file_processor;
 mod file_tree;
 
-#[global_allocator]
-static ALLOC: snmalloc_rs::SnMalloc = snmalloc_rs::SnMalloc;
-
 pub fn main() {
     let args: Vec<String> = std::env::args().collect();
     let config = config::AppConfig::new(&args).unwrap_or_else(|e| {

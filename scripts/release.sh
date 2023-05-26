@@ -47,6 +47,24 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+cross_targets=("aarch64-apple-darwin" "x86_64-apple-darwin")
+for target in "${cross_targets[@]}"; do
+  (cd "$ROOT_DIR" && cargo build --all --release --target "$target")
+done
+
+mkdir -p "${ROOT_DIR}/target/universal/release"
+lipo -create \
+  -output "${ROOT_DIR}/target/universal/release/code-digest" \
+  "${ROOT_DIR}/target/aarch64-apple-darwin/release/code-digest" \
+  "${ROOT_DIR}/target/x86_64-apple-darwin/release/code-digest"
+
+"${SCRIPT_DIR}"/notarize.sh \
+  --binary-path "${ROOT_DIR}/target/universal/release/code-digest" \
+  --output-zip-path "${ROOT_DIR}target/universal/release/code-digest-macos.zip" \
+  --developer-id "$DEVELOPER_ID" \
+  --apple-id "$APPLE_ID" \
+  --app-specific-password "$APP_SPECIFIC_PASSWORD"
+
 if [[ -z "$TAG" ]]; then
   echo "Error: No tag specified."
   exit 1
@@ -76,21 +94,6 @@ if ! gh run list --limit 1 --workflow ".github/workflows/release.yml" --branch "
   exit 1
 fi
 
-#cross_targets=("x86_64-unknown-linux-gnu" "x86_64-apple-darwin" "x86_64-pc-windows-gnu" "aarch64-unknown-linux-gnu" "aarch64-apple-darwin" "aarch64-pc-windows-gnu")
-cross_targets=("aarch64-apple-darwin")
-for target in "${cross_targets[@]}"; do
-  (cd "$ROOT_DIR" && cargo build --release --target "$target")
-
-  if [[ "$target" == "aarch64-apple-darwin" ]]; then
-    "${SCRIPT_DIR}"/notarize.sh \
-      --binary-path "${ROOT_DIR}/target/${target}/release/code-digest" \
-      --output-zip-path "${ROOT_DIR}target/${target}/release/code-digest-macos-arm64.zip" \
-      --developer-id "$DEVELOPER_ID" \
-      --apple-id "$APPLE_ID" \
-      --app-specific-password "$APP_SPECIFIC_PASSWORD"
-  fi
-done
-
 # Check if the release already exists
 release_id=$(gh release view "$TAG" --json id -q '.id' 2>/dev/null || echo "")
 
@@ -108,17 +111,7 @@ fi
 gh release create "$TAG" --title "Release $TAG" --notes "Release notes for $TAG" --draft
 
 # Upload the artifacts
-for target in "${cross_targets[@]}"; do
-  if [[ "$target" == "aarch64-apple-darwin" ]]; then
-    artifact="${ROOT_DIR}target/${target}/release/code-digest-macos-arm64.zip"
-    gh release upload "$TAG" "$artifact" --clobber
-    continue
-  fi
-
-  artifact="${ROOT_DIR}/target/$target/release/code-digest"
-  artifact_name="code-digest-$target"
-  zip -j "$artifact_name.zip" "$artifact"
-  gh release upload "$TAG" "$artifact_name.zip" --clobber
-done
+artifact="${ROOT_DIR}target/universal/release/code-digest-macos.zip"
+gh release upload "$TAG" "$artifact" --clobber
 
 echo "Release $TAG created successfully."
