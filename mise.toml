@@ -1,0 +1,5 @@
+[tools]
+cargo-binstall = "latest"
+node = "latest"
+rust = "latest"
+just = "latest"

@@ -36,7 +36,7 @@ impl Eq for File {}
 
 impl PartialOrd for File {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.path.partial_cmp(&other.path)
+        Some(self.cmp(other))
     }
 }
 
@@ -55,31 +55,27 @@ impl Iterator for FileIterator {
     type Item = File;
 
     fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            match self.walker.next() {
-                Some(Ok(entry)) => {
-                    let subpath = entry.path();
-                    let relative_path = subpath.strip_prefix(&self.path).unwrap();
-                    let depth = relative_path.components().count() as isize;
-                    let file = File {
-                        path: subpath.to_path_buf(),
-                        kind: if subpath.is_dir() {
-                            FileKind::Directory
-                        } else {
-                            FileKind::File
-                        },
-                        depth,
-                    };
-                    return Some(file);
-                }
-                Some(Err(err)) => {
-                    eprintln!("Error: {}", err);
-                    std::process::exit(1);
-                }
-                None => {
-                    return None;
-                }
+        match self.walker.next() {
+            Some(Ok(entry)) => {
+                let subpath = entry.path();
+                let relative_path = subpath.strip_prefix(&self.path).unwrap();
+                let depth = relative_path.components().count() as isize;
+                let file = File {
+                    path: subpath.to_path_buf(),
+                    kind: if subpath.is_dir() {
+                        FileKind::Directory
+                    } else {
+                        FileKind::File
+                    },
+                    depth,
+                };
+                Some(file)
             }
+            Some(Err(err)) => {
+                eprintln!("Error: {}", err);
+                std::process::exit(1);
+            }
+            None => None,
         }
     }
 }
