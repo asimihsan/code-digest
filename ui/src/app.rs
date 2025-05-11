@@ -12,13 +12,13 @@ use crate::components::{FileTree, Viewer};
 use dioxus::prelude::*;
 
 const FAVICON: Asset = asset!("/assets/favicon.ico");
-const MAIN_CSS: Asset = asset!("/assets/styling/main.css");
+const TAILWIND: Asset = asset!("/assets/styling/tailwind.css");
 
 #[component]
 pub fn App() -> Element {
     rsx! {
         document::Link { rel: "icon", href: FAVICON }
-        document::Stylesheet { href: MAIN_CSS }
+        document::Stylesheet { href: TAILWIND }
 
         div { class: "flex h-screen",
             div { class: "w-64 border-r overflow-auto", FileTree {} }

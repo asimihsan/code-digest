@@ -1,5 +1,5 @@
 [tools]
 cargo-binstall = "latest"
-node = "latest"
+node = "lts"
 rust = "latest"
 just = "latest"
