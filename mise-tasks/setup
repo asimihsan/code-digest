@@ -4,4 +4,5 @@
 set -euo pipefail
 
 git submodule update --init --recursive
+rustup component add rustfmt clippy >/dev/null
 echo "Repository setup complete."
