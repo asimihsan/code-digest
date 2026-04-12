@@ -31,7 +31,9 @@ code-digest can be easily adapted to various use cases and requirements.
 ## Features
 
 - Support for multiple programming languages, with current support for Go and
-  Rust, and upcoming support for HCL, Java, and Python.
+  Rust plus digest support for JavaScript, TypeScript, TSX, and JSON. HCL,
+  Java, and Python remain vendored for future work but are not yet exposed
+  through the digest selectors.
 - Flexible parsing system with customizable selectors and actions, allowing you
   to extract the most relevant information from your codebase.
 - Efficient file system traversal with support for ignoring specific directories
@@ -57,6 +59,15 @@ code-digest --directory /path/to/your/project --ignore /path/to/ignore/directory
 
 By default, code-digest will elide function bodies while keeping structs, types,
 and other important information.
+
+Currently routed file types are:
+
+- `.go`
+- `.rs`
+- `.js`, `.mjs`, `.cjs`
+- `.ts`
+- `.tsx`
+- `.json`
 
 ### CLI Tool Options
 

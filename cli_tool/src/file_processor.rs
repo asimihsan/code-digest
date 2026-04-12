@@ -11,7 +11,7 @@
 use std::path::Path;
 
 use file_system::GlobPatternMatcher;
-use language_parsers::{parse, ParseConfig};
+use language_parsers::{default_parse_config_for_language, parse, Language, ParseConfig};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum FileSkipReason {
@@ -33,29 +33,61 @@ pub enum FileProcessorError {
     UnsupportedFileKind(String),
 }
 
+pub struct ParseConfigs {
+    go: ParseConfig,
+    javascript: ParseConfig,
+    json: ParseConfig,
+    rust: ParseConfig,
+    tsx: ParseConfig,
+    typescript: ParseConfig,
+}
+
+impl ParseConfigs {
+    pub fn new() -> Self {
+        Self {
+            go: default_parse_config_for_language(Language::Go),
+            javascript: default_parse_config_for_language(Language::JavaScript),
+            json: default_parse_config_for_language(Language::Json),
+            rust: default_parse_config_for_language(Language::Rust),
+            tsx: default_parse_config_for_language(Language::Tsx),
+            typescript: default_parse_config_for_language(Language::TypeScript),
+        }
+    }
+
+    fn for_extension(
+        &self,
+        extension: &str,
+    ) -> Result<(&ParseConfig, &'static str), FileProcessorError> {
+        match extension {
+            "go" => Ok((&self.go, "go")),
+            "js" | "mjs" | "cjs" => Ok((&self.javascript, "javascript")),
+            "json" => Ok((&self.json, "json")),
+            "rs" => Ok((&self.rust, "rust")),
+            "ts" => Ok((&self.typescript, "typescript")),
+            "tsx" => Ok((&self.tsx, "tsx")),
+            _ => Err(FileProcessorError::UnsupportedFileKind(
+                extension.to_string(),
+            )),
+        }
+    }
+}
+
 pub fn process_files<'a>(
     files: impl Iterator<Item = file_system::File> + 'a,
-    go_config: &'a ParseConfig,
-    rust_config: &'a ParseConfig,
+    parse_configs: &'a ParseConfigs,
     glob_matcher: &'a GlobPatternMatcher,
 ) -> impl Iterator<Item = Result<String, FileProcessorError>> + 'a {
     files.into_iter().filter_map(move |file| {
         if file.kind != file_system::FileKind::File {
             return None;
         }
-        Some(process_file(
-            &file.path,
-            go_config,
-            rust_config,
-            glob_matcher,
-        ))
+        Some(process_file(&file.path, parse_configs, glob_matcher))
     })
 }
 
 pub fn process_file(
     file_path: &Path,
-    go_config: &ParseConfig,
-    rust_config: &ParseConfig,
+    parse_configs: &ParseConfigs,
     glob_matcher: &GlobPatternMatcher,
 ) -> Result<String, FileProcessorError> {
     let source_code =
@@ -75,15 +107,7 @@ pub fn process_file(
         ));
     }
     let extension = extension.unwrap().to_str().unwrap();
-    let parse_config = match extension {
-        "go" => go_config,
-        "rs" => rust_config,
-        _ => {
-            return Err(FileProcessorError::UnsupportedFileKind(
-                extension.to_string(),
-            ))
-        }
-    };
+    let (parse_config, code_fence_language) = parse_configs.for_extension(extension)?;
     let parsed = parse(&source_code, parse_config);
     if parsed.is_err() {
         return Err(FileProcessorError::ErrorParsingFile(parsed.err().unwrap()));
@@ -91,15 +115,7 @@ pub fn process_file(
     let parsed = parsed.unwrap();
 
     output.push_str(&format!("`{}`\n", file_path.display()));
-    match extension {
-        "go" => {
-            output.push_str("```go\n");
-        }
-        "rs" => {
-            output.push_str("```rust\n");
-        }
-        _ => unreachable!(),
-    }
+    output.push_str(&format!("```{}\n", code_fence_language));
 
     for (i, key_content) in parsed.iter().enumerate() {
         output.push_str(&key_content.content.to_string());
@@ -116,7 +132,6 @@ pub fn process_file(
 #[cfg(test)]
 mod tests {
     use file_system::{File, FileKind};
-    use language_parsers::{default_parse_config_for_language, Language};
 
     use crate::GlobPatternMatcher;
 
@@ -124,8 +139,7 @@ mod tests {
 
     #[test]
     fn test_process_file_rust() {
-        let rust_config = default_parse_config_for_language(Language::Rust);
-        let go_config = default_parse_config_for_language(Language::Go);
+        let parse_configs = ParseConfigs::new();
         let glob_matcher = GlobPatternMatcher::new_from_strings(&[]).unwrap();
 
         // Create a temporary file with Rust code
@@ -141,7 +155,7 @@ fn main() {
         )
         .unwrap();
 
-        let result = process_file(&file_path, &go_config, &rust_config, &glob_matcher);
+        let result = process_file(&file_path, &parse_configs, &glob_matcher);
         assert!(result.is_ok());
         let actual_output = result.unwrap();
 
@@ -161,8 +175,7 @@ fn main() {{
 
     #[test]
     fn test_process_files() {
-        let rust_config = default_parse_config_for_language(Language::Rust);
-        let go_config = default_parse_config_for_language(Language::Go);
+        let parse_configs = ParseConfigs::new();
         let glob_matcher = GlobPatternMatcher::new_from_strings(&[]).unwrap();
 
         // Create a temporary file with Rust code
@@ -207,7 +220,7 @@ func main() {
         ];
 
         let results: Vec<_> =
-            process_files(files.into_iter(), &go_config, &rust_config, &glob_matcher).collect();
+            process_files(files.into_iter(), &parse_configs, &glob_matcher).collect();
 
         assert_eq!(results.len(), 2);
 
@@ -236,5 +249,76 @@ func main() {{
 
         assert_eq!(results[0].as_ref().unwrap(), &rust_expected_output);
         assert_eq!(results[1].as_ref().unwrap(), &go_expected_output);
+    }
+
+    #[test]
+    fn test_process_file_javascript_typescript_and_json() {
+        let parse_configs = ParseConfigs::new();
+        let glob_matcher = GlobPatternMatcher::new_from_strings(&[]).unwrap();
+        let temp_dir = tempfile::tempdir().unwrap();
+
+        let javascript_path = temp_dir.path().join("example.js");
+        std::fs::write(
+            &javascript_path,
+            "import { useMemo } from 'react';\n\nexport function render(value) {\n  return value + 1;\n}\n",
+        )
+        .unwrap();
+
+        let typescript_path = temp_dir.path().join("example.ts");
+        std::fs::write(
+            &typescript_path,
+            "export interface User {\n  id: string;\n}\n\nexport function formatUser(user: User): string {\n  return user.id;\n}\n",
+        )
+        .unwrap();
+
+        let tsx_path = temp_dir.path().join("example.tsx");
+        std::fs::write(
+            &tsx_path,
+            "export function View(): JSX.Element {\n  return <section>Hello</section>;\n}\n",
+        )
+        .unwrap();
+
+        let json_path = temp_dir.path().join("example.json");
+        std::fs::write(
+            &json_path,
+            "{\n  \"name\": \"code-digest\",\n  \"enabled\": true\n}\n",
+        )
+        .unwrap();
+
+        let javascript_output =
+            process_file(&javascript_path, &parse_configs, &glob_matcher).unwrap();
+        let typescript_output =
+            process_file(&typescript_path, &parse_configs, &glob_matcher).unwrap();
+        let tsx_output = process_file(&tsx_path, &parse_configs, &glob_matcher).unwrap();
+        let json_output = process_file(&json_path, &parse_configs, &glob_matcher).unwrap();
+
+        assert_eq!(
+            javascript_output,
+            format!(
+                "`{}`\n```javascript\nimport {{ useMemo }} from 'react';\n\nfunction render(value) {{\n  // ...\n}}\n```\n",
+                javascript_path.display()
+            )
+        );
+        assert_eq!(
+            typescript_output,
+            format!(
+                "`{}`\n```typescript\ninterface User {{\n  id: string;\n}}\n\nfunction formatUser(user: User): string {{\n  // ...\n}}\n```\n",
+                typescript_path.display()
+            )
+        );
+        assert_eq!(
+            tsx_output,
+            format!(
+                "`{}`\n```tsx\nfunction View(): JSX.Element {{\n  // ...\n}}\n```\n",
+                tsx_path.display()
+            )
+        );
+        assert_eq!(
+            json_output,
+            format!(
+                "`{}`\n```json\n{{\n  \"name\": \"code-digest\",\n  \"enabled\": true\n}}\n```\n",
+                json_path.display()
+            )
+        );
     }
 }

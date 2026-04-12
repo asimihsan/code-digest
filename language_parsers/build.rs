@@ -88,7 +88,7 @@ fn main() {
         TreeSitterParser {
             name: "tree-sitter-hcl",
             src_dir: Path::new("../vendor/tree-sitter-hcl/src"),
-            extra_files: vec!["scanner.cc"],
+            extra_files: vec!["scanner.c"],
         },
         TreeSitterParser {
             name: "tree-sitter-java",
@@ -96,13 +96,33 @@ fn main() {
             extra_files: vec![],
         },
         TreeSitterParser {
+            name: "tree-sitter-javascript",
+            src_dir: Path::new("../vendor/tree-sitter-javascript/src"),
+            extra_files: vec!["scanner.c"],
+        },
+        TreeSitterParser {
+            name: "tree-sitter-json",
+            src_dir: Path::new("../vendor/tree-sitter-json/src"),
+            extra_files: vec![],
+        },
+        TreeSitterParser {
             name: "tree-sitter-python",
             src_dir: Path::new("../vendor/tree-sitter-python/src"),
-            extra_files: vec!["scanner.cc"],
+            extra_files: vec!["scanner.c"],
         },
         TreeSitterParser {
             name: "tree-sitter-rust",
             src_dir: Path::new("../vendor/tree-sitter-rust/src"),
+            extra_files: vec!["scanner.c"],
+        },
+        TreeSitterParser {
+            name: "tree-sitter-typescript",
+            src_dir: Path::new("../vendor/tree-sitter-typescript/typescript/src"),
+            extra_files: vec!["scanner.c"],
+        },
+        TreeSitterParser {
+            name: "tree-sitter-tsx",
+            src_dir: Path::new("../vendor/tree-sitter-typescript/tsx/src"),
             extra_files: vec!["scanner.c"],
         },
     ];
