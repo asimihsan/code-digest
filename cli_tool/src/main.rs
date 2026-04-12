@@ -10,11 +10,9 @@
 
 use std::path::PathBuf;
 
-use file_system::{get_files, GlobPatternMatcher};
-use language_parsers::default_parse_config_for_language;
-
-use crate::file_processor::{process_files, FileProcessorError};
+use crate::file_processor::{process_files, FileProcessorError, ParseConfigs};
 use crate::file_tree::{print_file_tree, CallbackArgs};
+use file_system::{get_files, GlobPatternMatcher};
 
 mod config;
 mod file_processor;
@@ -66,8 +64,7 @@ pub fn main() {
 
     let glob_matcher = GlobPatternMatcher::new_from_strings(cli_include).unwrap();
 
-    let go_config = default_parse_config_for_language(language_parsers::Language::Go);
-    let rust_config = default_parse_config_for_language(language_parsers::Language::Rust);
+    let parse_configs = ParseConfigs::new();
 
     if config.tree {
         print_file_tree(
@@ -90,8 +87,7 @@ pub fn main() {
 
     for file_result in process_files(
         get_files(directory, ignore_dirs),
-        &go_config,
-        &rust_config,
+        &parse_configs,
         &glob_matcher,
     ) {
         match file_result {

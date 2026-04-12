@@ -15,13 +15,17 @@ use tree_sitter as ts;
 
 mod tree_sitter_parse;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum Language {
     Go,
     Hcl,
     Java,
+    JavaScript,
+    Json,
     Python,
     Rust,
+    Tsx,
+    TypeScript,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -113,70 +117,128 @@ pub struct KeyContent {
 
 pub fn default_parse_config_for_language(language: Language) -> ParseConfig {
     match language {
-        Language::Go => {
-            let mut config = ParseConfig::new(language, Indentation::Tabs);
-            config.add_selector(Selector::new("source_file", SelectorAction::SelectOnly));
-            config.add_selector(Selector::new(
-                "import_declaration",
-                SelectorAction::CaptureAll,
-            ));
-            config.add_selector(Selector::new(
-                "function_declaration",
-                SelectorAction::CaptureWithoutBlock,
-            ));
-            config.add_selector(Selector::new(
-                "method_declaration",
-                SelectorAction::CaptureWithoutBlock,
-            ));
-
-            // struct and interface
-            //
-            // type_declaration -> [..., type_spec] -> [..., type_name], then if type_name is
-            // struct_type then get all the content of the top-most type_declaration
-            config.add_selector(Selector::new(
-                "type_declaration",
-                SelectorAction::Custom(Box::new(|node, _cursor, source_code| {
-                    let _node_start_position = node.start_position();
-                    let _node_end_position = node.end_position();
-                    let type_spec = node.child(1);
-                    if let Some(type_spec) = type_spec {
-                        let type_name = type_spec.child(1);
-                        if let Some(type_name) = type_name {
-                            let type_name_kind = type_name.kind().to_string();
-                            if type_name_kind == "struct_type" || type_name_kind == "interface_type"
-                            {
-                                let content = node.utf8_text(source_code.as_bytes()).unwrap();
-                                return Ok(content.into());
-                            }
-                            return Ok("".into());
-                        }
-                    }
-                    Err(ParseError::CustomActionFailed(
-                        "type_declaration custom action failed".into(),
-                    ))
-                })),
-            ));
-            config
+        Language::Go => go_parse_config(language),
+        Language::JavaScript => javascript_parse_config(language),
+        Language::Json => json_parse_config(language),
+        Language::Rust => rust_parse_config(language),
+        Language::Tsx => typescript_family_parse_config(language),
+        Language::TypeScript => typescript_family_parse_config(language),
+        Language::Hcl | Language::Java | Language::Python => {
+            panic!("digest selectors are not wired for {language:?} yet")
         }
-        Language::Rust => {
-            let mut config = ParseConfig::new(language, Indentation::Spaces(4));
-            config.add_selector(Selector::new("source_file", SelectorAction::SelectOnly));
-            config.add_selector(Selector::new("use_declaration", SelectorAction::CaptureAll));
-            config.add_selector(Selector::new("struct_item", SelectorAction::CaptureAll));
-            config.add_selector(Selector::new("enum_item", SelectorAction::CaptureAll));
-            config.add_selector(Selector::new("type_item", SelectorAction::CaptureAll));
-            config.add_selector(Selector::new(
-                "function_item",
-                SelectorAction::CaptureWithoutBlock,
-            ));
-            config.add_selector(Selector::new(
-                "function_signature_item",
-                SelectorAction::CaptureWithoutBlock,
-            ));
-            config
-        }
-        _ => todo!(),
     }
+}
+
+fn go_parse_config(language: Language) -> ParseConfig {
+    let mut config = ParseConfig::new(language, Indentation::Tabs);
+    config.add_selector(Selector::new("source_file", SelectorAction::SelectOnly));
+    config.add_selector(Selector::new(
+        "import_declaration",
+        SelectorAction::CaptureAll,
+    ));
+    config.add_selector(Selector::new(
+        "function_declaration",
+        SelectorAction::CaptureWithoutBlock,
+    ));
+    config.add_selector(Selector::new(
+        "method_declaration",
+        SelectorAction::CaptureWithoutBlock,
+    ));
+
+    // struct and interface
+    //
+    // type_declaration -> [..., type_spec] -> [..., type_name], then if type_name is
+    // struct_type then get all the content of the top-most type_declaration
+    config.add_selector(Selector::new(
+        "type_declaration",
+        SelectorAction::Custom(Box::new(|node, _cursor, source_code| {
+            let _node_start_position = node.start_position();
+            let _node_end_position = node.end_position();
+            let type_spec = node.child(1);
+            if let Some(type_spec) = type_spec {
+                let type_name = type_spec.child(1);
+                if let Some(type_name) = type_name {
+                    let type_name_kind = type_name.kind().to_string();
+                    if type_name_kind == "struct_type" || type_name_kind == "interface_type" {
+                        let content = node.utf8_text(source_code.as_bytes()).unwrap();
+                        return Ok(content.into());
+                    }
+                    return Ok("".into());
+                }
+            }
+            Err(ParseError::CustomActionFailed(
+                "type_declaration custom action failed".into(),
+            ))
+        })),
+    ));
+    config
+}
+
+fn rust_parse_config(language: Language) -> ParseConfig {
+    let mut config = ParseConfig::new(language, Indentation::Spaces(4));
+    config.add_selector(Selector::new("source_file", SelectorAction::SelectOnly));
+    config.add_selector(Selector::new("use_declaration", SelectorAction::CaptureAll));
+    config.add_selector(Selector::new("struct_item", SelectorAction::CaptureAll));
+    config.add_selector(Selector::new("enum_item", SelectorAction::CaptureAll));
+    config.add_selector(Selector::new("type_item", SelectorAction::CaptureAll));
+    config.add_selector(Selector::new(
+        "function_item",
+        SelectorAction::CaptureWithoutBlock,
+    ));
+    config.add_selector(Selector::new(
+        "function_signature_item",
+        SelectorAction::CaptureWithoutBlock,
+    ));
+    config
+}
+
+fn javascript_parse_config(language: Language) -> ParseConfig {
+    let mut config = ParseConfig::new(language, Indentation::Spaces(2));
+    config.add_selector(Selector::new("program", SelectorAction::SelectOnly));
+    config.add_selector(Selector::new(
+        "import_statement",
+        SelectorAction::CaptureAll,
+    ));
+    config.add_selector(Selector::new(
+        "export_statement",
+        SelectorAction::SelectOnly,
+    ));
+    config.add_selector(Selector::new(
+        "class_declaration",
+        SelectorAction::CaptureAll,
+    ));
+    config.add_selector(Selector::new(
+        "function_declaration",
+        SelectorAction::CaptureWithoutBlock,
+    ));
+    config.add_selector(Selector::new(
+        "generator_function_declaration",
+        SelectorAction::CaptureWithoutBlock,
+    ));
+    config
+}
+
+fn typescript_family_parse_config(language: Language) -> ParseConfig {
+    let mut config = javascript_parse_config(language);
+    config.add_selector(Selector::new(
+        "interface_declaration",
+        SelectorAction::CaptureAll,
+    ));
+    config.add_selector(Selector::new(
+        "type_alias_declaration",
+        SelectorAction::CaptureAll,
+    ));
+    config.add_selector(Selector::new(
+        "enum_declaration",
+        SelectorAction::CaptureAll,
+    ));
+    config
+}
+
+fn json_parse_config(language: Language) -> ParseConfig {
+    let mut config = ParseConfig::new(language, Indentation::Spaces(2));
+    config.add_selector(Selector::new("document", SelectorAction::CaptureAll));
+    config
 }
 
 pub fn parse(source_code: &str, config: &ParseConfig) -> ParseResult<Vec<KeyContent>> {
@@ -236,25 +298,24 @@ fn block_like_to_string<'a>(
     source_code: &str,
     config: &ParseConfig,
 ) -> String {
-    let capacity_guess = node.byte_range().len();
-    let mut result = String::with_capacity(capacity_guess);
-    for child in node.children(cursor) {
-        if child.kind() == "block" {
-            result.push_str(" {\n");
-            result.push_str(&config.indent_value);
-            result.push_str("// ...\n}");
-        } else {
-            if child.kind() != "parameter_list"
-                && child.kind() != "func"
-                && child.kind() != "type_parameters"
-                && child.kind() != "parameters"
-            {
-                result.push(' ');
-            }
-            result.push_str(child.utf8_text(source_code.as_bytes()).unwrap());
-        }
+    let block_like_child = node
+        .children(cursor)
+        .find(|child| matches!(child.kind(), "block" | "statement_block"));
+
+    if let Some(block_like_child) = block_like_child {
+        let mut result = source_code[node.start_byte()..block_like_child.start_byte()]
+            .trim_end()
+            .to_string();
+        result.push_str(" {\n");
+        result.push_str(&config.indent_value);
+        result.push_str("// ...\n}");
+        return result;
     }
-    result.trim().to_string()
+
+    node.utf8_text(source_code.as_bytes())
+        .unwrap()
+        .trim()
+        .to_string()
 }
 
 #[cfg(test)]
@@ -306,7 +367,7 @@ func Setup(t *testing.T, setupConfig *SetupConfig) (*SetupFixture, error) {
         );
         assert_eq!(
             result[2].content,
-            r#"func Setup(t *testing.T, setupConfig *SetupConfig)(*SetupFixture, error) {
+            r#"func Setup(t *testing.T, setupConfig *SetupConfig) (*SetupFixture, error) {
 	// ...
 }"#
         );
