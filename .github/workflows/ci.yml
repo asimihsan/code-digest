@@ -62,7 +62,8 @@ jobs:
       - name: Prepare compiler cache
         run: |
           mkdir -p "$SCCACHE_DIR"
-          sccache --stop-server || true
+          sccache --stop-server >/dev/null 2>&1 || true
+          sccache --start-server || true
           sccache --zero-stats || true
       - name: Run canonical CI task
         env:
