@@ -8,22 +8,92 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+env:
+  CARGO_INCREMENTAL: 0
+  CARGO_TERM_COLOR: always
+  MISE_GITHUB_TOKEN: ${{ github.token }}
+  RUST_BACKTRACE: 1
+  SCCACHE_CACHE_SIZE: 2G
+  SCCACHE_DIR: ${{ github.workspace }}/.sccache
+
 jobs:
   release:
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            rustc_wrapper: sccache
+            use_sccache: true
+          - os: macos-latest
+            rustc_wrapper: sccache
+            use_sccache: true
+          - os: windows-latest
+            rustc_wrapper: ""
+            use_sccache: false
     runs-on: ${{ matrix.os }}
+    env:
+      RUSTC_WRAPPER: ${{ matrix.rustc_wrapper }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
-      - uses: jdx/mise-action@v3
+      - name: Setup mise
+        uses: jdx/mise-action@v4
+        with:
+          install: true
+          cache_key_prefix: mise-v2
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          MISE_GITHUB_TOKEN: ${{ github.token }}
+      - name: Cache cargo registry + git
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-v1-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            cargo-v1-${{ runner.os }}-
+      - name: Restore sccache directory
+        if: matrix.use_sccache
+        id: sccache-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: ${{ env.SCCACHE_DIR }}
+          key: sccache-v1-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'mise.toml', '.github/workflows/release.yml') }}
+          restore-keys: |
+            sccache-v1-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'mise.toml') }}-
+            sccache-v1-${{ runner.os }}-
+      - name: Prepare repository
+        run: mise run setup
+      - name: Prepare compiler cache
+        if: matrix.use_sccache
+        shell: bash
+        run: |
+          mkdir -p "$SCCACHE_DIR"
+          sccache --stop-server || true
+          sccache --zero-stats || true
       - name: Build release artifacts
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          MISE_GITHUB_TOKEN: ${{ github.token }}
         run: mise run build-release
+      - name: Show sccache stats
+        if: always() && matrix.use_sccache
+        shell: bash
+        run: sccache --show-stats || true
+      - name: Save sccache directory
+        if: always() && matrix.use_sccache && steps.sccache-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: ${{ env.SCCACHE_DIR }}
+          key: ${{ steps.sccache-cache.outputs.cache-primary-key }}
       - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: code-digest-${{ matrix.os }}
           path: ${{ runner.os == 'Windows' && 'target/release/code-digest.exe' || 'target/release/code-digest' }}

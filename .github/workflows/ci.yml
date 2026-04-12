@@ -7,17 +7,74 @@ on:
     branches: [main]
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 env:
+  CARGO_INCREMENTAL: 0
   CARGO_TERM_COLOR: always
+  MISE_GITHUB_TOKEN: ${{ github.token }}
+  RUST_BACKTRACE: 1
+  RUSTC_WRAPPER: sccache
+  SCCACHE_CACHE_SIZE: 2G
+  SCCACHE_DIR: ${{ github.workspace }}/.sccache
 
 jobs:
   ci:
     name: CI
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
-      - uses: jdx/mise-action@v3
+      - name: Setup mise
+        uses: jdx/mise-action@v4
+        with:
+          install: true
+          cache_key_prefix: mise-v2
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          MISE_GITHUB_TOKEN: ${{ github.token }}
+      - name: Cache cargo registry + git
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-v1-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            cargo-v1-${{ runner.os }}-
+      - name: Restore sccache directory
+        id: sccache-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: ${{ env.SCCACHE_DIR }}
+          key: sccache-v1-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'mise.toml', '.github/workflows/ci.yml') }}
+          restore-keys: |
+            sccache-v1-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'mise.toml') }}-
+            sccache-v1-${{ runner.os }}-
+      - name: Prepare repository
+        run: mise run setup
+      - name: Prepare compiler cache
+        run: |
+          mkdir -p "$SCCACHE_DIR"
+          sccache --stop-server || true
+          sccache --zero-stats || true
       - name: Run canonical CI task
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          MISE_GITHUB_TOKEN: ${{ github.token }}
         run: mise run ci
+      - name: Show sccache stats
+        if: always()
+        run: sccache --show-stats || true
+      - name: Save sccache directory
+        if: always() && steps.sccache-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: ${{ env.SCCACHE_DIR }}
+          key: ${{ steps.sccache-cache.outputs.cache-primary-key }}
