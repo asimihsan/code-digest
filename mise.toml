@@ -1,5 +1,22 @@
 [tools]
-cargo-binstall = "latest"
-node = "lts"
-rust = "latest"
-just = "latest"
+"cargo:cargo-audit" = "0.22.1"
+"cargo:dioxus-cli" = "0.6.3"
+cargo-binstall = "1.17.9"
+node = "24.14.1"
+rust = { version = "1.94", components = "rustfmt,clippy" }
+sccache = "0.14.0"
+
+[task_config]
+includes = ["mise-tasks"]
+
+[env]
+PROJECT_ENV_DEBUG = "0"
+_.source = "{{ config_root }}/scripts/env.sh"
+
+[hooks]
+postinstall = [
+    "./scripts/postinstall.sh",
+]
+
+[settings]
+experimental = true

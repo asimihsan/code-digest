@@ -60,7 +60,7 @@ lipo -create \
 
 "${SCRIPT_DIR}"/notarize.sh \
   --binary-path "${ROOT_DIR}/target/universal/release/code-digest" \
-  --output-zip-path "${ROOT_DIR}target/universal/release/code-digest-macos.zip" \
+  --output-zip-path "${ROOT_DIR}/target/universal/release/code-digest-macos.zip" \
   --developer-id "$DEVELOPER_ID" \
   --apple-id "$APPLE_ID" \
   --app-specific-password "$APP_SPECIFIC_PASSWORD"
@@ -111,7 +111,7 @@ fi
 gh release create "$TAG" --title "Release $TAG" --notes "Release notes for $TAG" --draft
 
 # Upload the artifacts
-artifact="${ROOT_DIR}target/universal/release/code-digest-macos.zip"
+artifact="${ROOT_DIR}/target/universal/release/code-digest-macos.zip"
 gh release upload "$TAG" "$artifact" --clobber
 
 echo "Release $TAG created successfully."

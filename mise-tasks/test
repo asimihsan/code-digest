@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+#MISE description="Run workspace tests"
+#MISE alias="t"
+
+set -euo pipefail
+
+cargo test --workspace --all-targets

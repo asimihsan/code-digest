@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+#MISE description="Run the Dioxus desktop UI dev server"
+
+set -euo pipefail
+
+cd ui
+dx serve --platform desktop

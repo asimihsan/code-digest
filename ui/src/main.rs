@@ -1,10 +1,8 @@
-use dioxus_fullstack::prelude::*;
-use dioxus_lib::prelude::*;
-
 mod app;
 mod components;
 
-use crate::app::App;
+#[cfg(feature = "server")]
+use dioxus_fullstack::prelude::DioxusRouterExt;
 
 fn main() {
     #[cfg(feature = "server")]
@@ -25,7 +23,10 @@ async fn launch_server() {
 
     // Build a custom axum router
     let router = axum::Router::new()
-        .serve_dioxus_application(ServeConfigBuilder::new(), App)
+        .serve_dioxus_application(
+            dioxus_fullstack::prelude::ServeConfigBuilder::new(),
+            app::App,
+        )
         .into_make_service();
 
     // And launch it!

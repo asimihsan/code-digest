@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+#MISE description="Default local quality loop"
+
+set -euo pipefail
+
+mise run fmt
+mise run lint
+mise run test

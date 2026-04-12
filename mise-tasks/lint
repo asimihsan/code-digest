@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+#MISE description="Run strict Rust lint checks"
+
+set -euo pipefail
+
+cargo clippy --workspace --all-targets -- -D warnings
+cargo check -p ui --features server

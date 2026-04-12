@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+#MISE description="Canonical local/CI pipeline"
+
+set -euo pipefail
+
+mise run fmt
+mise run lint
+mise run test
+mise run build-release
+mise run audit

@@ -103,11 +103,11 @@ pub struct Cli {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::{assert_eq, vec};
+    use std::assert_eq;
 
     #[test]
     fn test_parse_cli_args() {
-        let args = vec![
+        let args = [
             "code-digest",
             "--ignore",
             "/path/to/ignore",

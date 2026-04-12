@@ -126,7 +126,8 @@ mod tests {
         File::create(file_a2).unwrap();
         File::create(file_b1).unwrap();
 
-        let files = file_system::get_files(temp_dir.into_path(), &[]);
+        let temp_path = temp_dir.keep();
+        let files = file_system::get_files(temp_path, &[]);
 
         let mut output = String::new();
 

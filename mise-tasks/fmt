@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="Run formatting checks"
+
+set -euo pipefail
+
+cargo fmt --all --check

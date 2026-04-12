@@ -144,6 +144,43 @@ demonstration of the library's capabilities.
 
 ## Developing
 
+### Prerequisites
+
+- [Mise](https://mise.jdx.dev/) for tool and task management
+- Git for source control
+- Optional: `jj` for colocated Jujutsu local workflow
+
+### Quick Start
+
+```shell
+mise trust
+mise install
+mise run setup
+mise run ci
+```
+
+### Common Commands
+
+- `mise run doctor` - show mise diagnostics and discovered tasks
+- `mise run fmt` - run formatting checks
+- `mise run lint` - run strict clippy checks
+- `mise run test` - run the workspace test suite
+- `mise run build` - build the workspace
+- `mise run build-release` - build optimized binaries
+- `mise run audit` - audit Cargo dependencies
+- `mise run dev` - run the default local quality loop
+- `mise run ui:serve` - launch the Dioxus desktop UI dev server
+
+### Local Version Control
+
+This repo now supports a colocated Jujutsu workflow while preserving the Git
+remote:
+
+```shell
+jj st --no-pager
+jj log -n 5
+```
+
 ### Mac release
 
 #### Pre-requisites

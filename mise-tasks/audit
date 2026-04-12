@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="Audit Cargo dependencies"
+
+set -euo pipefail
+
+cargo audit

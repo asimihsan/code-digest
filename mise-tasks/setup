@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+#MISE description="Prepare the local repository after tool installation"
+
+set -euo pipefail
+
+git submodule update --init --recursive
+echo "Repository setup complete."
