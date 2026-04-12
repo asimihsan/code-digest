@@ -1,8 +1,8 @@
 [tools]
 "cargo:cargo-audit" = "0.22.1"
-"cargo:dioxus-cli" = "0.6.3"
+"cargo:dioxus-cli" = "0.7.5"
 cargo-binstall = "1.17.9"
-node = "24.14.1"
+node = "25.9.0"
 rust = { version = "1.94", components = "rustfmt,clippy" }
 sccache = "0.14.0"
 

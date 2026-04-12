@@ -2,7 +2,7 @@ mod app;
 mod components;
 
 #[cfg(feature = "server")]
-use dioxus_fullstack::prelude::DioxusRouterExt;
+use dioxus::prelude::{DioxusRouterExt, ServeConfig};
 
 fn main() {
     #[cfg(feature = "server")]
@@ -22,12 +22,7 @@ async fn launch_server() {
     let socket_addr = dioxus_cli_config::fullstack_address_or_localhost();
 
     // Build a custom axum router
-    let router = axum::Router::new()
-        .serve_dioxus_application(
-            dioxus_fullstack::prelude::ServeConfigBuilder::new(),
-            app::App,
-        )
-        .into_make_service();
+    let router = axum::Router::new().serve_dioxus_application(ServeConfig::new(), app::App);
 
     // And launch it!
     let listener = tokio::net::TcpListener::bind(socket_addr).await.unwrap();

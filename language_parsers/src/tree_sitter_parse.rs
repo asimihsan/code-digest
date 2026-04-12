@@ -50,7 +50,7 @@ pub fn from_language(language: Language) -> TreeSitterConfig {
 pub fn to_tree(src: &str, config: &TreeSitterConfig) -> Option<ts::Tree> {
     let mut parser = ts::Parser::new();
     parser
-        .set_language(config.language)
+        .set_language(&config.language)
         .expect("Incompatible tree-sitter version");
     parser.parse(src, None)
 }
