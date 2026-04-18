@@ -11,11 +11,13 @@
 use std::collections::{HashMap, VecDeque};
 
 use crate::tree_sitter_parse::{from_language, to_tree};
+use serde::{Deserialize, Serialize};
 use tree_sitter as ts;
 
+pub mod metrics_contract;
 mod tree_sitter_parse;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Language {
     Go,
     Hcl,
@@ -26,6 +28,34 @@ pub enum Language {
     Rust,
     Tsx,
     TypeScript,
+}
+
+impl Language {
+    pub fn slug(self) -> &'static str {
+        match self {
+            Language::Go => "go",
+            Language::Hcl => "hcl",
+            Language::Java => "java",
+            Language::JavaScript => "javascript",
+            Language::Json => "json",
+            Language::Python => "python",
+            Language::Rust => "rust",
+            Language::Tsx => "tsx",
+            Language::TypeScript => "typescript",
+        }
+    }
+
+    pub fn supports_digest_selectors(self) -> bool {
+        matches!(
+            self,
+            Language::Go
+                | Language::JavaScript
+                | Language::Json
+                | Language::Rust
+                | Language::Tsx
+                | Language::TypeScript
+        )
+    }
 }
 
 #[derive(thiserror::Error, Debug)]

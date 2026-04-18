@@ -38,11 +38,11 @@
 ## Current State / Baseline
 
 - The Rust workspace currently contains `language_parsers`, `file_system`, `output_generator`, `config_manager`, `cli_tool`, and `ui`.
-- `language_parsers` already depends on Tree-sitter and currently wires grammars for Go, HCL, Java, Python, and Rust.
+- `language_parsers` already depends on Tree-sitter and currently wires grammars for Go, HCL, Java, JavaScript, JSON, Python, Rust, TypeScript, and TSX.
 - The README and CLI describe the current product as code digestion and extraction for LLM-oriented workflows.
 - The repo has no normalized code-unit fact model, no blob-summary cache, no Git mining layer, and no label abstraction today.
 - The repo backlog structure exists but is nearly empty, so this plan has to anchor directly to the current crate layout instead of extending an existing roadmap.
-- User research points toward a broader multi-language platform shape, including JavaScript, TypeScript, TSX, and JSON for Node-centric repos, but those grammars are not yet wired in this checkout.
+- User research points toward a broader multi-language platform shape, including JavaScript, TypeScript, TSX, and JSON for Node-centric repos, and those grammars are now wired in this checkout.
 
 ## Gap Analysis
 
@@ -88,9 +88,9 @@
 - Candidate Tasks:
   - `task-00000001` Define the metrics domain model, report contract, and fixtures
 - Exit Criteria:
-  - [ ] Stable records and ids are documented for files, units, metrics, and later change features.
-  - [ ] The additive boundary with the existing digest flow is explicit.
-  - [ ] Blob-id caching rules and fixture strategy are specified.
+  - [x] Stable records and ids are documented for files, units, metrics, and later change features.
+  - [x] The additive boundary with the existing digest flow is explicit.
+  - [x] Blob-id caching rules and fixture strategy are specified.
 
 ### Phase 1 - Static syntax-derived metrics
 
@@ -127,7 +127,7 @@
 
 | Task ID | Title | Phase | Depends On | Status |
 |---|---|---|---|---|
-| task-`00000001` | Define the metrics domain model, report contract, and fixtures | `Phase 0` | `none` | `proposed` |
+| task-`00000001` | Define the metrics domain model, report contract, and fixtures | `Phase 0` | `none` | `completed` |
 | task-`00000002` | Add static Tree-sitter metrics extraction | `Phase 1` | `task-00000001` | `proposed` |
 | task-`00000003` | Expose metrics through CLI, output, and UI | `Phase 1` | `task-00000001`, `task-00000002` | `proposed` |
 | task-`00000004` | Add change and process metrics dataset export | `Phase 2` | `task-00000002`, `task-00000003` | `proposed` |
@@ -160,20 +160,21 @@
 | Question | Needed By | Owner | Resolution |
 |---|---|---|---|
 | Should the first implementation stay inside the current workspace crates, or should any part of the `sqm-*` split happen immediately? | `task-00000001` | `OpenClaw` | `open` |
-| Should the first static-metrics slice target only currently wired grammars, or also add JavaScript, TypeScript, TSX, and JSON in the same phase? | `task-00000002` | `OpenClaw` | `open` |
+| Should the first static-metrics slice target all currently wired grammars immediately, or start with a smaller parity subset and expand fixture-by-fixture? | `task-00000002` | `OpenClaw` | `open` |
 | Is `gix` sufficient as the primary Git layer in practice, or is a thin `git2` fallback feature worth adding from the start? | `task-00000004` | `OpenClaw` | `open` |
 | Should `polars` stay optional until dataset ergonomics demand it, or become part of the first export and modeling workflow? | `task-00000004` | `OpenClaw` | `open` |
 
 ## Immediate Next Actions
 
-1. Lock the normalized record types, cache keys, and language adapter contract in `task-00000001`.
-2. Start the smallest proving slice in the parser layer, using blob summaries plus a shared fixture corpus instead of chasing broad feature coverage immediately.
+1. Start `task-00000002` from the now-landed contract, beginning with the smallest static-metrics slice that exercises blob summaries plus the shared fixture corpus.
+2. Keep metrics rollout additive to digest output, with explicit scope on which currently wired grammars get first-pass metric parity.
 3. Delay change-risk modeling claims until change-metric extraction, label boundaries, and temporal evaluation scaffolding exist.
 
 ## Implementation Notes
 
 - `2026-04-12`: Initial plan created from current repo structure plus user-provided research direction.
 - `2026-04-12`: Expanded to reflect the feature-platform architecture, blob-id caching strategy, Git mining layer, optional label boundary, and deferred embedding fusion guidance.
+- `2026-04-18`: Phase 0 contract work landed in `task-00000001`, including normalized records, blob-scoped stable ids, additive digest compatibility, and the initial fixture corpus plan.
 - The plan intentionally preserves the repo’s digest identity and treats metrics as an adjacent capability.
 
 ## Completion Checklist
@@ -188,3 +189,4 @@
 
 - `2026-04-12` Initial draft created for additive quality-metrics expansion
 - `2026-04-12` Incorporated platform, caching, Git-layer, and modeling research into the draft
+- `2026-04-18` Updated the baseline to reflect current Node-family grammar support and marked `task-00000001` complete
