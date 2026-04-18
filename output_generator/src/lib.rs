@@ -14,6 +14,8 @@ use language_parsers::metrics_contract::{
 };
 use serde::{Deserialize, Serialize};
 
+pub mod static_metrics;
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ContractOwnership {
     pub parsing: String,
@@ -80,6 +82,15 @@ impl MetricsReportContract {
             commit_deltas: Vec::new(),
         }
     }
+
+    pub fn with_blob_summaries(
+        repository_root: impl Into<String>,
+        blob_summaries: Vec<BlobSummary>,
+    ) -> Self {
+        let mut contract = Self::empty(repository_root);
+        contract.blob_summaries = blob_summaries;
+        contract
+    }
 }
 
 #[cfg(test)]
@@ -126,5 +137,14 @@ mod tests {
             .cases
             .iter()
             .any(|case| { case.manifest_kind == Some(ProjectContextManifestKind::PackageJson) }));
+    }
+
+    #[test]
+    fn with_blob_summaries_keeps_additive_contract_defaults() {
+        let contract = MetricsReportContract::with_blob_summaries("repo-root", Vec::new());
+
+        assert_eq!(contract.project_context.repository_root, "repo-root");
+        assert!(contract.blob_summaries.is_empty());
+        assert!(contract.digest_compatibility.additive_to_existing_digest);
     }
 }

@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 use tree_sitter as ts;
 
 pub mod metrics_contract;
+pub mod static_metrics;
 mod tree_sitter_parse;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -62,6 +63,12 @@ impl Language {
 pub enum ParseError {
     #[error("custom selector action failed")]
     CustomActionFailed(String),
+
+    #[error("static metrics are not yet supported for {0:?}")]
+    UnsupportedStaticMetricsLanguage(Language),
+
+    #[error("tree-sitter query compilation failed: {0}")]
+    TreeSitterQueryError(String),
 
     #[error("tree-sitter parse error")]
     TreeSitterParseError(#[from] tree_sitter::LanguageError),

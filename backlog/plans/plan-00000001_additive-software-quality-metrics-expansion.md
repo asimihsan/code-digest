@@ -99,9 +99,9 @@
   - `task-00000002` Add static Tree-sitter metrics extraction
   - `task-00000003` Expose metrics through CLI, output, and UI
 - Exit Criteria:
-  - [ ] Static metrics can be produced without regressing digest output.
-  - [ ] Blob summaries and metric results are covered by fixtures or integration tests.
-  - [ ] The target language rollout is explicit, including what happens with Node-family grammars.
+  - [x] Static metrics can be produced without regressing digest output.
+  - [x] Blob summaries and metric results are covered by fixtures or integration tests.
+  - [x] The target language rollout is explicit, including what happens with Node-family grammars.
 
 ### Phase 2 - Change and process metrics
 
@@ -128,7 +128,7 @@
 | Task ID | Title | Phase | Depends On | Status |
 |---|---|---|---|---|
 | task-`00000001` | Define the metrics domain model, report contract, and fixtures | `Phase 0` | `none` | `completed` |
-| task-`00000002` | Add static Tree-sitter metrics extraction | `Phase 1` | `task-00000001` | `proposed` |
+| task-`00000002` | Add static Tree-sitter metrics extraction | `Phase 1` | `task-00000001` | `completed` |
 | task-`00000003` | Expose metrics through CLI, output, and UI | `Phase 1` | `task-00000001`, `task-00000002` | `proposed` |
 | task-`00000004` | Add change and process metrics dataset export | `Phase 2` | `task-00000002`, `task-00000003` | `proposed` |
 | task-`00000005` | Add temporal baseline modeling and evaluation | `Phase 3` | `task-00000004` | `proposed` |
@@ -160,14 +160,14 @@
 | Question | Needed By | Owner | Resolution |
 |---|---|---|---|
 | Should the first implementation stay inside the current workspace crates, or should any part of the `sqm-*` split happen immediately? | `task-00000001` | `OpenClaw` | `open` |
-| Should the first static-metrics slice target all currently wired grammars immediately, or start with a smaller parity subset and expand fixture-by-fixture? | `task-00000002` | `OpenClaw` | `open` |
+| Should the first static-metrics slice target all currently wired grammars immediately, or start with a smaller parity subset and expand fixture-by-fixture? | `task-00000002` | `OpenClaw` | `resolved 2026-04-18: start with go/rust/javascript/typescript/tsx/json and keep python/java/hcl explicit follow-up work` |
 | Is `gix` sufficient as the primary Git layer in practice, or is a thin `git2` fallback feature worth adding from the start? | `task-00000004` | `OpenClaw` | `open` |
 | Should `polars` stay optional until dataset ergonomics demand it, or become part of the first export and modeling workflow? | `task-00000004` | `OpenClaw` | `open` |
 
 ## Immediate Next Actions
 
-1. Start `task-00000002` from the now-landed contract, beginning with the smallest static-metrics slice that exercises blob summaries plus the shared fixture corpus.
-2. Keep metrics rollout additive to digest output, with explicit scope on which currently wired grammars get first-pass metric parity.
+1. Start `task-00000003` to expose the landed blob-summary metrics through explicit additive CLI and output paths.
+2. Expand fixture-by-fixture language parity for deferred grammars (`python`, `java`, `hcl`) instead of widening this slice with ad hoc heuristics.
 3. Delay change-risk modeling claims until change-metric extraction, label boundaries, and temporal evaluation scaffolding exist.
 
 ## Implementation Notes
@@ -175,6 +175,7 @@
 - `2026-04-12`: Initial plan created from current repo structure plus user-provided research direction.
 - `2026-04-12`: Expanded to reflect the feature-platform architecture, blob-id caching strategy, Git mining layer, optional label boundary, and deferred embedding fusion guidance.
 - `2026-04-18`: Phase 0 contract work landed in `task-00000001`, including normalized records, blob-scoped stable ids, additive digest compatibility, and the initial fixture corpus plan.
+- `2026-04-18`: `task-00000002` landed the first static-metrics slice for `go`, `rust`, `javascript`, `typescript`, `tsx`, and `json`, with Tree-sitter-query-backed structural anchors, shared metric events, blob summaries, and fixture-backed aggregation coverage.
 - The plan intentionally preserves the repo’s digest identity and treats metrics as an adjacent capability.
 
 ## Completion Checklist
@@ -190,3 +191,4 @@
 - `2026-04-12` Initial draft created for additive quality-metrics expansion
 - `2026-04-12` Incorporated platform, caching, Git-layer, and modeling research into the draft
 - `2026-04-18` Updated the baseline to reflect current Node-family grammar support and marked `task-00000001` complete
+- `2026-04-18` Marked `task-00000002` complete and recorded the first explicit static-metrics language slice

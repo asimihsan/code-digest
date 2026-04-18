@@ -1,0 +1,7 @@
+{
+  // service flags
+  "service": {
+    "enabled": true,
+    "retries": 2
+  }
+}
