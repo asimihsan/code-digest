@@ -150,6 +150,42 @@ extern "C" {
 }
 
 #[test]
+fn rust_restricted_visibilities_stay_internal() {
+    let source = r#"pub fn public_render() {}
+pub(crate) fn crate_render() {}
+pub(super) fn super_render() {}
+pub(self) fn self_render() {}
+"#;
+
+    let extraction = extract_static_metrics_observations("vis.rs", Language::Rust, source).unwrap();
+
+    let public_render = extraction
+        .units
+        .iter()
+        .find(|unit| unit.display_name == "public_render")
+        .unwrap();
+    let restricted_units: Vec<_> = extraction
+        .units
+        .iter()
+        .filter(|unit| {
+            matches!(
+                unit.display_name.as_str(),
+                "crate_render" | "super_render" | "self_render"
+            )
+        })
+        .collect();
+
+    assert_eq!(
+        public_render.exposure,
+        language_parsers::metrics_contract::CodeUnitExposure::PublicApi
+    );
+    assert_eq!(restricted_units.len(), 3);
+    assert!(restricted_units.iter().all(|unit| {
+        unit.exposure == language_parsers::metrics_contract::CodeUnitExposure::Internal
+    }));
+}
+
+#[test]
 fn javascript_arrow_and_function_expression_units_are_executable() {
     let source = r#"export const render = flag => {
   if (flag) {
@@ -193,6 +229,103 @@ assignLater = item => item;
                 .as_ref()
                 .is_some_and(|stable_id| stable_id.0.contains("render"))
     }));
+}
+
+#[test]
+fn javascript_export_clause_marks_prior_declarations_public() {
+    let source = r#"function render(flag) {
+  if (flag) {
+    return 1;
+  }
+  return 0;
+}
+
+const helper = item => item;
+export { render, helper as exportedHelper };
+"#;
+
+    let extraction =
+        extract_static_metrics_observations("exports.js", Language::JavaScript, source).unwrap();
+
+    let render = extraction
+        .units
+        .iter()
+        .find(|unit| unit.display_name == "render")
+        .unwrap();
+    let helper = extraction
+        .units
+        .iter()
+        .find(|unit| unit.display_name == "helper")
+        .unwrap();
+
+    assert_eq!(
+        render.exposure,
+        language_parsers::metrics_contract::CodeUnitExposure::PublicApi
+    );
+    assert_eq!(
+        helper.exposure,
+        language_parsers::metrics_contract::CodeUnitExposure::PublicApi
+    );
+}
+
+#[test]
+fn javascript_export_clause_does_not_mark_nested_or_reexported_units_public() {
+    let source = r#"function render() {
+  function helper() {
+    return 1;
+  }
+  return helper();
+}
+
+export { render } from "./other";
+"#;
+
+    let extraction =
+        extract_static_metrics_observations("exports.js", Language::JavaScript, source).unwrap();
+
+    let render = extraction
+        .units
+        .iter()
+        .find(|unit| unit.display_name == "render")
+        .unwrap();
+    let helper = extraction
+        .units
+        .iter()
+        .find(|unit| unit.display_name == "helper")
+        .unwrap();
+
+    assert_eq!(
+        render.exposure,
+        language_parsers::metrics_contract::CodeUnitExposure::Internal
+    );
+    assert_eq!(
+        helper.exposure,
+        language_parsers::metrics_contract::CodeUnitExposure::Internal
+    );
+}
+
+#[test]
+fn javascript_top_level_control_flow_emits_file_level_events() {
+    let source = r#"if (ready) {
+  boot();
+}
+
+for (const item of items) {
+  consume(item);
+}
+"#;
+
+    let extraction =
+        extract_static_metrics_observations("top_level.js", Language::JavaScript, source).unwrap();
+
+    assert!(extraction
+        .events
+        .iter()
+        .any(|event| { event.kind == MetricEventKind::Branch && event.stable_unit_id.is_none() }));
+    assert!(extraction
+        .events
+        .iter()
+        .any(|event| { event.kind == MetricEventKind::Loop && event.stable_unit_id.is_none() }));
 }
 
 #[test]

@@ -128,6 +128,32 @@ fn logical_code_lines_keep_inline_comment_lines() {
 }
 
 #[test]
+fn summary_counts_only_true_rust_pub_items_as_public_api() {
+    let source = r#"pub fn public_render() {}
+pub(crate) fn crate_render() {}
+pub(super) fn super_render() {}
+pub(self) fn self_render() {}
+"#;
+    let extraction = extract_static_metrics_observations("vis.rs", Language::Rust, source).unwrap();
+    let summary = summarize_static_metrics(&extraction, source);
+
+    let file_metrics: Vec<_> = summary
+        .metrics
+        .iter()
+        .filter(|row| {
+            matches!(
+                row.subject,
+                language_parsers::metrics_contract::MetricSubject::File { .. }
+            )
+        })
+        .cloned()
+        .collect();
+
+    assert_eq!(integer_metric(&file_metrics, "function_count"), 4);
+    assert_eq!(integer_metric(&file_metrics, "public_api_unit_count"), 1);
+}
+
+#[test]
 fn summary_counts_exported_arrow_functions_as_units_with_parameters() {
     let source = r#"export const render = flag => {
   if (flag) {
@@ -157,6 +183,111 @@ fn summary_counts_exported_arrow_functions_as_units_with_parameters() {
     assert_eq!(
         integer_code_unit_metric(&summary.metrics, "render", "parameter_count"),
         1
+    );
+}
+
+#[test]
+fn summary_counts_export_clause_reexports_as_public_api_units() {
+    let source = r#"function render(flag) {
+  if (flag) {
+    return 1;
+  }
+  return 0;
+}
+
+const helper = item => item;
+export { render, helper as exportedHelper };
+"#;
+    let extraction =
+        extract_static_metrics_observations("exports.js", Language::JavaScript, source).unwrap();
+    let summary = summarize_static_metrics(&extraction, source);
+
+    let file_metrics: Vec<_> = summary
+        .metrics
+        .iter()
+        .filter(|row| {
+            matches!(
+                row.subject,
+                language_parsers::metrics_contract::MetricSubject::File { .. }
+            )
+        })
+        .cloned()
+        .collect();
+
+    assert_eq!(integer_metric(&file_metrics, "function_count"), 2);
+    assert_eq!(integer_metric(&file_metrics, "public_api_unit_count"), 2);
+}
+
+#[test]
+fn summary_skips_public_api_counts_for_nested_or_reexported_export_clauses() {
+    let source = r#"function render() {
+  function helper() {
+    return 1;
+  }
+  return helper();
+}
+
+export { render } from "./other";
+"#;
+    let extraction =
+        extract_static_metrics_observations("exports.js", Language::JavaScript, source).unwrap();
+    let summary = summarize_static_metrics(&extraction, source);
+
+    let file_metrics: Vec<_> = summary
+        .metrics
+        .iter()
+        .filter(|row| {
+            matches!(
+                row.subject,
+                language_parsers::metrics_contract::MetricSubject::File { .. }
+            )
+        })
+        .cloned()
+        .collect();
+
+    assert_eq!(integer_metric(&file_metrics, "function_count"), 2);
+    assert_eq!(integer_metric(&file_metrics, "public_api_unit_count"), 0);
+}
+
+#[test]
+fn summary_counts_top_level_control_flow_in_file_rollups_only() {
+    let source = r#"function render(value) {
+  return value;
+}
+
+if (ready) {
+  render(1);
+}
+
+for (const item of items) {
+  render(item);
+}
+"#;
+    let extraction =
+        extract_static_metrics_observations("top_level.js", Language::JavaScript, source).unwrap();
+    let summary = summarize_static_metrics(&extraction, source);
+
+    let file_metrics: Vec<_> = summary
+        .metrics
+        .iter()
+        .filter(|row| {
+            matches!(
+                row.subject,
+                language_parsers::metrics_contract::MetricSubject::File { .. }
+            )
+        })
+        .cloned()
+        .collect();
+
+    assert_eq!(integer_metric(&file_metrics, "branch_count"), 1);
+    assert_eq!(integer_metric(&file_metrics, "loop_count"), 1);
+    assert_eq!(
+        integer_code_unit_metric(&summary.metrics, "render", "branch_count"),
+        0
+    );
+    assert_eq!(
+        integer_code_unit_metric(&summary.metrics, "render", "loop_count"),
+        0
     );
 }
 

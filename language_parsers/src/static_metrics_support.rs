@@ -8,6 +8,8 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
+use std::collections::HashSet;
+
 use sha1::{Digest, Sha1};
 use tree_sitter as ts;
 
@@ -154,9 +156,8 @@ pub(crate) fn exposure_for_node(
     source: &[u8],
 ) -> CodeUnitExposure {
     match language {
-        Language::Rust => node
-            .child_by_field_name("visibility")
-            .or_else(|| child_with_kind(node, "visibility_modifier"))
+        Language::Rust => visibility_text(node, source)
+            .filter(|visibility| *visibility == "pub")
             .map(|_| CodeUnitExposure::PublicApi)
             .unwrap_or(CodeUnitExposure::Internal),
         Language::Go => display_name
@@ -308,6 +309,50 @@ fn child_with_kind<'a>(node: &ts::Node<'a>, expected_kind: &str) -> Option<ts::N
     child
 }
 
+fn visibility_text<'a>(node: &ts::Node<'a>, source: &'a [u8]) -> Option<&'a str> {
+    node.child_by_field_name("visibility")
+        .or_else(|| child_with_kind(node, "visibility_modifier"))
+        .and_then(|visibility| visibility.utf8_text(source).ok())
+        .map(str::trim)
+}
+
+pub(crate) fn js_exported_names(root: ts::Node<'_>, source: &[u8]) -> HashSet<String> {
+    let mut exported = HashSet::new();
+    let mut cursor = root.walk();
+    for child in root.named_children(&mut cursor) {
+        if child.kind() != "export_statement" {
+            continue;
+        }
+        if child.child_by_field_name("source").is_some() {
+            continue;
+        }
+
+        let mut export_cursor = child.walk();
+        for export_child in child.named_children(&mut export_cursor) {
+            if export_child.kind() != "export_clause" {
+                continue;
+            }
+
+            let mut clause_cursor = export_child.walk();
+            for specifier in export_child.named_children(&mut clause_cursor) {
+                if specifier.kind() != "export_specifier" {
+                    continue;
+                }
+                if let Some(name) = specifier.child_by_field_name("name").and_then(|name| {
+                    name.utf8_text(source)
+                        .ok()
+                        .map(str::trim)
+                        .filter(|name| !name.is_empty())
+                        .map(ToOwned::to_owned)
+                }) {
+                    exported.insert(name);
+                }
+            }
+        }
+    }
+    exported
+}
+
 fn is_direct_js_exported_declaration(node: &ts::Node<'_>) -> bool {
     let mut current = node.parent();
     while let Some(parent) = current {
@@ -390,5 +435,61 @@ mod tests {
             blob_id_for_source("hello world\n"),
             "3b18e512dba79e4c8300dd08aeb37f8e728b8dad"
         );
+    }
+
+    #[test]
+    fn rust_visibility_text_distinguishes_restricted_visibilities() {
+        assert_eq!(
+            visibility_text_from_source("pub fn sample() {}", Language::Rust),
+            Some(String::from("pub"))
+        );
+        assert_eq!(
+            visibility_text_from_source("pub(crate) fn sample() {}", Language::Rust),
+            Some(String::from("pub(crate)"))
+        );
+        assert_eq!(
+            visibility_text_from_source("pub(super) fn sample() {}", Language::Rust),
+            Some(String::from("pub(super)"))
+        );
+    }
+
+    #[test]
+    fn js_exported_names_include_export_clause_locals() {
+        let language = crate::tree_sitter_parse::from_language(Language::JavaScript);
+        let source = r#"
+function render() {}
+const helper = value => value;
+export { render, helper as exportedHelper };
+"#;
+        let tree = crate::tree_sitter_parse::to_tree(source, &language).unwrap();
+
+        assert_eq!(
+            js_exported_names(tree.root_node(), source.as_bytes()),
+            HashSet::from([String::from("render"), String::from("helper"),])
+        );
+    }
+
+    #[test]
+    fn js_exported_names_skip_reexports_from_other_modules() {
+        let language = crate::tree_sitter_parse::from_language(Language::JavaScript);
+        let source = r#"
+function render() {}
+export { render } from "./other";
+"#;
+        let tree = crate::tree_sitter_parse::to_tree(source, &language).unwrap();
+
+        assert!(js_exported_names(tree.root_node(), source.as_bytes()).is_empty());
+    }
+
+    fn visibility_text_from_source(source: &str, language: Language) -> Option<String> {
+        let ts_language = crate::tree_sitter_parse::from_language(language);
+        let tree = crate::tree_sitter_parse::to_tree(source, &ts_language).unwrap();
+        let root = tree.root_node();
+        let mut cursor = root.walk();
+        let visibility = root
+            .named_children(&mut cursor)
+            .find(|node| node.kind() == "function_item")
+            .and_then(|node| visibility_text(&node, source.as_bytes()).map(str::to_string));
+        visibility
     }
 }

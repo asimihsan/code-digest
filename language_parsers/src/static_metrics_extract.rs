@@ -8,7 +8,7 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use tree_sitter as ts;
 use tree_sitter::StreamingIterator;
@@ -23,8 +23,8 @@ use crate::{Language, ParseError};
 
 use super::support::{
     blob_id_for_source, build_qualified_names, code_unit_kind, default_display_name,
-    exposure_for_node, is_parent_candidate, span_contains, spec_for, LanguageSpec,
-    MetricExtraction, RawUnit,
+    exposure_for_node, is_parent_candidate, js_exported_names, span_contains, spec_for,
+    LanguageSpec, MetricExtraction, RawUnit,
 };
 
 pub fn extract_static_metrics_observations(
@@ -102,6 +102,12 @@ impl MetricsLanguageAdapterContract for StaticMetricsAdapter {
         let mut cursor = ts::QueryCursor::new();
         let mut matches = cursor.matches(&query, tree.root_node(), source.as_bytes());
         let mut raw_units = Vec::new();
+        let exported_names = match self.spec.language {
+            Language::JavaScript | Language::TypeScript | Language::Tsx => {
+                js_exported_names(tree.root_node(), source.as_bytes())
+            }
+            _ => HashSet::new(),
+        };
 
         matches.advance();
         while let Some(query_match) = matches.get() {
@@ -177,6 +183,20 @@ impl MetricsLanguageAdapterContract for StaticMetricsAdapter {
                 .filter(|candidate| {
                     span_contains(&raw_units[*candidate].span, &raw_units[index].span)
                 });
+        }
+
+        if matches!(
+            self.spec.language,
+            Language::JavaScript | Language::TypeScript | Language::Tsx
+        ) {
+            for unit in &mut raw_units {
+                if unit.parent_index.is_none()
+                    && unit.execution_kind == CodeUnitExecutionKind::Executable
+                    && exported_names.contains(&unit.display_name)
+                {
+                    unit.exposure = crate::metrics_contract::CodeUnitExposure::PublicApi;
+                }
+            }
         }
 
         let qualified_names = build_qualified_names(&raw_units);
@@ -339,26 +359,24 @@ fn walk_tree(
         }
     }
 
-    if let Some(stable_unit_id) = current_executable.clone() {
-        let event_kind = if spec.branch_nodes.contains(&node.kind()) {
-            Some(MetricEventKind::Branch)
-        } else if spec.loop_nodes.contains(&node.kind()) {
-            Some(MetricEventKind::Loop)
-        } else if spec.return_nodes.contains(&node.kind()) {
-            Some(MetricEventKind::Return)
-        } else if spec.closure_nodes.contains(&node.kind()) {
-            Some(MetricEventKind::Closure)
-        } else {
-            None
-        };
-        if let Some(kind) = event_kind {
-            events.push(MetricEvent {
-                kind,
-                stable_unit_id: Some(stable_unit_id),
-                span: SourceSpan::from_node(&node),
-                detail: Some(nesting_depth.to_string()),
-            });
-        }
+    let event_kind = if spec.branch_nodes.contains(&node.kind()) {
+        Some(MetricEventKind::Branch)
+    } else if spec.loop_nodes.contains(&node.kind()) {
+        Some(MetricEventKind::Loop)
+    } else if spec.return_nodes.contains(&node.kind()) {
+        Some(MetricEventKind::Return)
+    } else if spec.closure_nodes.contains(&node.kind()) {
+        Some(MetricEventKind::Closure)
+    } else {
+        None
+    };
+    if let Some(kind) = event_kind {
+        events.push(MetricEvent {
+            kind,
+            stable_unit_id: current_executable.clone(),
+            span: SourceSpan::from_node(&node),
+            detail: Some(nesting_depth.to_string()),
+        });
     }
 
     let next_depth = if current_executable.is_some()
